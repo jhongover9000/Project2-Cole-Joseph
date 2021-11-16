@@ -1,0 +1,20 @@
+# Ignore all
+*
+
+# Unignore all with extensions
+!*.*
+
+# Unignore all dirs
+!*/
+
+# Ignore Visual Studio Code folder and content
+*.vscode
+
+# Ignore .DS_Store
+*.DS_Store
+
+# Ignore .mp4, .mp3, .jpg
+*.mp4
+*.mov
+*.mp3
+*.jpg

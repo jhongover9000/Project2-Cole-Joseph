@@ -57,7 +57,7 @@ void stop_timer()
     sigprocmask(SIG_BLOCK, &sigmask, NULL);
 }
 
-
+ 
 /*
  * init_timer: Initialize timeer
  * delay: delay in milli seconds
@@ -79,10 +79,17 @@ void init_timer(int delay, void (*sig_handler)(int))
 int main (int argc, char **argv)
 {
     int portno, len;
-    int next_seqno;
+    
     char *hostname;
     char buffer[DATA_SIZE];
     FILE *fp;
+
+    int dupeACKs = 0;
+    int windowStartSeqNum;     // starting sequence of window 
+    int windowEndSeqNum;       // ending sequence of window
+    int nextSeqNum;            // starting sequence of next packet to be sent
+
+    printf("Data Size: %d\n", DATA_SIZE);
 
     /* check command line arguments */
     if (argc != 4) {
@@ -111,6 +118,7 @@ int main (int argc, char **argv)
         fprintf(stderr,"ERROR, invalid host %s\n", hostname);
         exit(0);
     }
+    printf("%s\n", hostname);
 
     /* build the server's Internet address */
     serveraddr.sin_family = AF_INET;
@@ -124,7 +132,9 @@ int main (int argc, char **argv)
     next_seqno = 0;
     while (1)
     {
+        
         len = fread(buffer, 1, DATA_SIZE, fp);
+        printf("Read %d bytes.\n", len);
         if ( len <= 0)
         {
             VLOG(INFO, "End Of File has been reached");

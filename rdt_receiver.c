@@ -29,9 +29,13 @@ int main(int argc, char **argv) {
     struct sockaddr_in serveraddr; /* server's addr */
     struct sockaddr_in clientaddr; /* client addr */
     int optval; /* flag value for setsockopt */
+
     FILE *fp;
     char buffer[MSS_SIZE];
     struct timeval tp;
+    
+
+
 
     /* 
      * check command line arguments 
@@ -82,6 +86,9 @@ int main(int argc, char **argv) {
      * main loop: wait for a datagram, then echo it
      */
     VLOG(DEBUG, "epoch time, bytes received, sequence number");
+
+    // check IP address for validity (using text-to-binary) (debug) 
+    printf("Server IP: %s | Port Num: %d \n", inet_ntoa(serveraddr.sin_addr), portno);
 
     clientlen = sizeof(clientaddr);
     while (1) {
