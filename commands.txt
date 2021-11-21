@@ -2,6 +2,8 @@ mm-delay 50
 
 mm-link --meter-uplink /usr/share/mahimahi/traces/ATT-LTE-driving-2016.up /usr/share/mahimahi/traces/ATT-LTE-driving-2016.up
 
+cd tcp
+
 ./sender $MAHIMAHI_BASE 5000 video.mp4
 
-./receiver 5000 video.mp4
+./Server/receiver 5000 video.mp4

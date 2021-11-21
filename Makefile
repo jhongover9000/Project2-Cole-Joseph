@@ -11,7 +11,7 @@ LINKER = gcc -o
 # linking flags here
 LFLAGS   = -Wall
 
-OBJDIR = ./obj
+OBJDIR = ./tcp
 
 CLIENT_OBJECTS := $(OBJDIR)/rdt_sender.o $(OBJDIR)/common.o $(OBJDIR)/packet.o
 SERVER_OBJECTS := $(OBJDIR)/rdt_receiver.o $(OBJDIR)/common.o $(OBJDIR)/packet.o
@@ -31,7 +31,7 @@ $(CLIENT):	$(CLIENT_OBJECTS)
 	@echo "Link complete!"
 
 $(SERVER): $(SERVER_OBJECTS)
-	$(LINKER)  $@  $(SERVER_OBJECTS)
+	$(LINKER)  $@  $(SERVER_OBJECTS) && mkdir $(OBJDIR)/Server && mv $(SERVER) $(OBJDIR)/Server
 	@echo "Link complete!"
 
 $(OBJDIR)/%.o:	%.c common.h packet.h

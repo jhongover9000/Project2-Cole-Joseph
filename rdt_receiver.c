@@ -1,3 +1,10 @@
+// Project 2: TCP Implementation (Receiver/Server)
+// Cole and Joseph
+// Description: receiver-side code for the TCP implementation via C Sockets (UDP).
+//              Modified starter code from class.
+// =============================================================================
+// =============================================================================
+// Includes and Definitions
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -11,17 +18,16 @@
 
 #include "common.h"
 #include "packet.h"
+// =============================================================================
+// =============================================================================
+// Global Variables
 
-
-/*
- * You ar required to change the implementation to support
- * window size greater than one.
- * In the currenlt implemenetation window size is one, hence we have
- * onlyt one send and receive packet
- */
 tcp_packet *recvpkt;
 tcp_packet *sndpkt;
 
+// =============================================================================
+// =============================================================================
+// Execution
 int main(int argc, char **argv) {
     int sockfd; /* socket */
     int portno; /* port to listen on */
@@ -34,9 +40,7 @@ int main(int argc, char **argv) {
     struct timeval tp;
     int lastrecvseqnum = 0;
 
-    /* 
-     * check command line arguments 
-     */
+    // Check command line arguments
     if (argc != 3) {
         fprintf(stderr, "usage: %s <port> FILE_RECVD\n", argv[0]);
         exit(1);
@@ -48,9 +52,7 @@ int main(int argc, char **argv) {
         error(argv[2]);
     }
 
-    /* 
-     * socket: create the parent socket 
-     */
+    // socket: create the parent socket 
     sockfd = socket(AF_INET, SOCK_DGRAM, 0);
     if (sockfd < 0) 
         error("ERROR opening socket");
@@ -99,6 +101,14 @@ int main(int argc, char **argv) {
         if ( recvpkt->hdr.data_size == 0) {
             //VLOG(INFO, "End Of File has been reached");
             fclose(fp);
+            sndpkt = make_packet(0);
+
+            // Mark packet as finish acknowledgement
+            sndpkt->hdr.ctr_flags = FIN;
+            if (sendto(sockfd, sndpkt, TCP_HDR_SIZE, 0, (struct sockaddr *) &clientaddr, clientlen) < 0) {
+                error("ERROR in sendto");
+            }
+            printf("File has been received! Exiting...\n");
             break;
         }
         /* 
@@ -108,7 +118,8 @@ int main(int argc, char **argv) {
         VLOG(DEBUG, "%lu, %d, %d", tp.tv_sec, recvpkt->hdr.data_size, recvpkt->hdr.seqno);
 
         sndpkt = make_packet(0);
-        //If not out of order, dont discard (sequence number isnt too large)
+
+        // If not out of order, dont discard (sequence number isnt too large)
         if(recvpkt->hdr.seqno + recvpkt->hdr.data_size <= lastrecvseqnum + DATA_SIZE){
             fseek(fp, recvpkt->hdr.seqno, SEEK_SET);
             fwrite(recvpkt->data, 1, recvpkt->hdr.data_size, fp);
@@ -116,7 +127,7 @@ int main(int argc, char **argv) {
             lastrecvseqnum = recvpkt->hdr.seqno + recvpkt->hdr.data_size;
         }
         else{
-            printf("Out of order packet recived");
+            printf("Out of order packet received.\n");
             sndpkt->hdr.ackno = lastrecvseqnum;
         }
         sndpkt->hdr.ctr_flags = ACK;

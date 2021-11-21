@@ -1,3 +1,10 @@
+// Project 2: TCP Implementation (Sender/Client)
+// Cole and Joseph
+// Description: sender-side code for the TCP implementation via C Sockets (UDP).
+//              Modified starter code from class.
+// =============================================================================
+// =============================================================================
+// Includes and Definitions
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -15,10 +22,14 @@
 #include"common.h"
 
 #define STDIN_FD    0
-#define RETRY  120 //milli second 
+#define RETRY  120 //milliseconds before timeout
+
+// =============================================================================
+// =============================================================================
+// Global Variables
 
 int next_seqno;
-int send_base=0;
+int send_base = 0;
 int window_size = 10;
 int effective_window = 10;
 int timer_running = 0; //0 if timer is not running
@@ -33,6 +44,11 @@ sigset_t sigmask;
 FILE *fp;
 int acklen;
 
+// =============================================================================
+// =============================================================================
+// Functions
+
+// Resend Packets (on timeout)
 void resend_packets(int sig)
 {
     if (sig == SIGALRM)
@@ -80,19 +96,18 @@ void resend_packets(int sig)
     }
 }
 
-
+// Start Timer
 void start_timer()
 {
     sigprocmask(SIG_UNBLOCK, &sigmask, NULL);
     setitimer(ITIMER_REAL, &timer, NULL);
 }
 
-
+// Stop Timer
 void stop_timer()
 {
     sigprocmask(SIG_BLOCK, &sigmask, NULL);
 }
-
 
 /*
  * init_timer: Initialize timeer
@@ -111,7 +126,9 @@ void init_timer(int delay, void (*sig_handler)(int))
     sigaddset(&sigmask, SIGALRM);
 }
 
-
+// =============================================================================
+// =============================================================================
+// Execution
 int main (int argc, char **argv)
 {
     int portno, len;
@@ -151,14 +168,12 @@ int main (int argc, char **argv)
 
     assert(MSS_SIZE - TCP_HDR_SIZE > 0);
 
-    //Go back n
-
+    // Go Back N Implementation
     init_timer(RETRY, resend_packets);
     next_seqno = 0;
     while (1)
     {
-
-        //Send as many packets in effective window as doable
+        // Send as many packets in effective window as doable
         while(effective_window > 0){
             //Read in data
             len = fread(buffer, 1, DATA_SIZE, fp);
@@ -167,15 +182,14 @@ int main (int argc, char **argv)
             {
                 VLOG(INFO, "End Of File has been reached");
                 sndpkt = make_packet(0);
-                sendto(sockfd, sndpkt, TCP_HDR_SIZE,  0,
-                        (const struct sockaddr *)&serveraddr, serverlen);
+                sendto(sockfd, sndpkt, TCP_HDR_SIZE, 0, (const struct sockaddr *)&serveraddr, serverlen);
                 break;
             }
             sndpkt = make_packet(len);
             memcpy(sndpkt->data, buffer, len);
             sndpkt->hdr.seqno = next_seqno;
 
-            //Send packet
+            // Send packet
 
             VLOG(DEBUG, "Sending packet %d to %s", 
                     next_seqno, inet_ntoa(serveraddr.sin_addr));
@@ -192,7 +206,7 @@ int main (int argc, char **argv)
                 error("sendto");
             }
 
-            //If first packet off, start timer
+            // If first packet off, start timer
             if(timer_running == 0){
                 start_timer();
                 timer_running = 1;
@@ -201,28 +215,36 @@ int main (int argc, char **argv)
         }
 
         
-        //Wait for ACK
+        // Wait for ACK
         // do {
-            //Discard any duplicate acks (below the next expected ack)
-            do{
-                if(recvfrom(sockfd, buffer, MSS_SIZE, 0,
-                    (struct sockaddr *) &serveraddr, (socklen_t *)&serverlen) < 0)
-                {
-                    error("recvfrom");
-                }
+        //Discard any duplicate acks (below the next expected ack)
+        do{
+            if(recvfrom(sockfd, buffer, MSS_SIZE, 0,
+                (struct sockaddr *) &serveraddr, (socklen_t *)&serverlen) < 0)
+            {
+                error("recvfrom");
+            }
+            
+            recvpkt = (tcp_packet *)buffer;
 
-                recvpkt = (tcp_packet *)buffer;
-                printf("%d \n", get_data_size(recvpkt));
-                printf("Packet ackno: %d \n", recvpkt->hdr.ackno);
-                printf("Send base, len: %d %d\n", send_base, acklen);
-                assert(get_data_size(recvpkt) <= DATA_SIZE);
-            } while(recvpkt->hdr.ackno < send_base+acklen);
+            // If file has been fully received, stop execution
+            if(recvpkt->hdr.ctr_flags == FIN){
+                printf("File has been transferred. Exiting...\n");
+                free(sndpkt);
+                exit(EXIT_SUCCESS);
+            }
 
-            //The expected ack has been recieved
-            effective_window++;
-            send_base = send_base+acklen;
-            stop_timer();
-            timer_running = 0;
+            printf("%d \n", get_data_size(recvpkt));
+            printf("Packet ackno: %d \n", recvpkt->hdr.ackno);
+            printf("Send base, len: %d %d\n", send_base, acklen);
+            assert(get_data_size(recvpkt) <= DATA_SIZE);
+        } while(recvpkt->hdr.ackno < send_base+acklen);
+
+        //The expected ack has been recieved
+        effective_window++;
+        send_base = send_base+acklen;
+        stop_timer();
+        timer_running = 0;
             /*resend pack if dont recv ack */
         // } while(recvpkt->hdr.ackno != send_base+acklen);
 
