@@ -13,6 +13,8 @@ LFLAGS   = -Wall
 
 OBJDIR = ./tcp
 
+SRVRDIR = ./tcp/Server
+
 CLIENT_OBJECTS := $(OBJDIR)/rdt_sender.o $(OBJDIR)/common.o $(OBJDIR)/packet.o
 SERVER_OBJECTS := $(OBJDIR)/rdt_receiver.o $(OBJDIR)/common.o $(OBJDIR)/packet.o
 
@@ -23,7 +25,7 @@ SERVER := $(OBJDIR)/receiver
 rm       = rm -f
 rmdir    = rmdir 
 
-TARGET:	$(OBJDIR) $(CLIENT)	$(SERVER)
+TARGET:	$(OBJDIR) $(SRVRDIR) $(CLIENT) $(SERVER)
 
 
 $(CLIENT):	$(CLIENT_OBJECTS)
@@ -31,7 +33,7 @@ $(CLIENT):	$(CLIENT_OBJECTS)
 	@echo "Link complete!"
 
 $(SERVER): $(SERVER_OBJECTS)
-	$(LINKER)  $@  $(SERVER_OBJECTS) && mkdir $(OBJDIR)/Server && mv $(SERVER) $(OBJDIR)/Server
+	$(LINKER)  $@  $(SERVER_OBJECTS) && mv $(SERVER) $(SRVRDIR)
 	@echo "Link complete!"
 
 $(OBJDIR)/%.o:	%.c common.h packet.h
@@ -42,35 +44,8 @@ clean:
 	@if [ -a $(OBJDIR) ]; then rm -r $(OBJDIR); fi;
 	@echo "Cleanup complete!"
 
+$(SRVRDIR):
+	@[ -a $(SRVRDIR) ]  || mkdir $(SRVRDIR)
+
 $(OBJDIR):
 	@[ -a $(OBJDIR) ]  || mkdir $(OBJDIR)
-
-
-# CFLAGS = -O
-# CC = gcc
-
-# all: common.o packet.o rdt_receiver rdt_sender 
-
-# # creates receiver and automatically places in folder Server
-# rdt_receiver: rdt_receiver.o
-# 	$(CC) $(CFLAGS) -o rdt_receiver rdt_receiver.o common.o packet.o && mv rdt_receiver Server/
-
-# rdt_sender: rdt_sender.o
-# 	$(CC) $(CFLAGS) -o rdt_sender rdt_sender.o common.o packet.o 
-
-# common.o:
-# 	$(CC) $(CFLAGS) -c common.c common.h
-
-# packet.o:
-# 	$(CC) $(CFLAGS) -c packet.c packet.h
-
-# rdt_receiver.o:
-# 	$(CC) $(CFLAGS) -c rdt_receiver.c
-
-# rdt_sender.o:
-# 	$(CC) $(CFLAGS) -c rdt_sender.c
-
-
- 
-# clean:
-# 	rm -f *.o *.gch *~ rdt_sender rdt_receiver

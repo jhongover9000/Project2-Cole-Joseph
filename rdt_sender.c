@@ -229,8 +229,9 @@ int main (int argc, char **argv)
 
             // If file has been fully received, stop execution
             if(recvpkt->hdr.ctr_flags == FIN){
-                printf("File has been transferred. Exiting...\n");
+                printf("File has been transferred! Exiting...\n");
                 free(sndpkt);
+                close(sockfd);
                 exit(EXIT_SUCCESS);
             }
 

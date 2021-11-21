@@ -109,6 +109,7 @@ int main(int argc, char **argv) {
                 error("ERROR in sendto");
             }
             printf("File has been received! Exiting...\n");
+            close(sockfd);
             break;
         }
         /* 
