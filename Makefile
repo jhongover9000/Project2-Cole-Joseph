@@ -44,3 +44,33 @@ clean:
 
 $(OBJDIR):
 	@[ -a $(OBJDIR) ]  || mkdir $(OBJDIR)
+
+
+# CFLAGS = -O
+# CC = gcc
+
+# all: common.o packet.o rdt_receiver rdt_sender 
+
+# # creates receiver and automatically places in folder Server
+# rdt_receiver: rdt_receiver.o
+# 	$(CC) $(CFLAGS) -o rdt_receiver rdt_receiver.o common.o packet.o && mv rdt_receiver Server/
+
+# rdt_sender: rdt_sender.o
+# 	$(CC) $(CFLAGS) -o rdt_sender rdt_sender.o common.o packet.o 
+
+# common.o:
+# 	$(CC) $(CFLAGS) -c common.c common.h
+
+# packet.o:
+# 	$(CC) $(CFLAGS) -c packet.c packet.h
+
+# rdt_receiver.o:
+# 	$(CC) $(CFLAGS) -c rdt_receiver.c
+
+# rdt_sender.o:
+# 	$(CC) $(CFLAGS) -c rdt_sender.c
+
+
+ 
+# clean:
+# 	rm -f *.o *.gch *~ rdt_sender rdt_receiver
