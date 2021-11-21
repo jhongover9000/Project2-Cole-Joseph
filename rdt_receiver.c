@@ -29,13 +29,10 @@ int main(int argc, char **argv) {
     struct sockaddr_in serveraddr; /* server's addr */
     struct sockaddr_in clientaddr; /* client addr */
     int optval; /* flag value for setsockopt */
-
     FILE *fp;
     char buffer[MSS_SIZE];
     struct timeval tp;
-    
-
-
+    int lastrecvseqnum = 0;
 
     /* 
      * check command line arguments 
@@ -87,9 +84,6 @@ int main(int argc, char **argv) {
      */
     VLOG(DEBUG, "epoch time, bytes received, sequence number");
 
-    // check IP address for validity (using text-to-binary) (debug) 
-    printf("Server IP: %s | Port Num: %d \n", inet_ntoa(serveraddr.sin_addr), portno);
-
     clientlen = sizeof(clientaddr);
     while (1) {
         /*
@@ -113,10 +107,18 @@ int main(int argc, char **argv) {
         gettimeofday(&tp, NULL);
         VLOG(DEBUG, "%lu, %d, %d", tp.tv_sec, recvpkt->hdr.data_size, recvpkt->hdr.seqno);
 
-        fseek(fp, recvpkt->hdr.seqno, SEEK_SET);
-        fwrite(recvpkt->data, 1, recvpkt->hdr.data_size, fp);
         sndpkt = make_packet(0);
-        sndpkt->hdr.ackno = recvpkt->hdr.seqno + recvpkt->hdr.data_size;
+        //If not out of order, dont discard (sequence number isnt too large)
+        if(recvpkt->hdr.seqno + recvpkt->hdr.data_size <= lastrecvseqnum + DATA_SIZE){
+            fseek(fp, recvpkt->hdr.seqno, SEEK_SET);
+            fwrite(recvpkt->data, 1, recvpkt->hdr.data_size, fp);
+            sndpkt->hdr.ackno = recvpkt->hdr.seqno + recvpkt->hdr.data_size;
+            lastrecvseqnum = recvpkt->hdr.seqno + recvpkt->hdr.data_size;
+        }
+        else{
+            printf("Out of order packet recived");
+            sndpkt->hdr.ackno = lastrecvseqnum;
+        }
         sndpkt->hdr.ctr_flags = ACK;
         if (sendto(sockfd, sndpkt, TCP_HDR_SIZE, 0, 
                 (struct sockaddr *) &clientaddr, clientlen) < 0) {
