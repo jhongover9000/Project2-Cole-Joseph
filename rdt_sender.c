@@ -102,6 +102,9 @@ void resend_packets(int sig)
         if (len <= 0){
             VLOG(INFO, "End Of File has been reached");
             sndpkt = make_packet(0);
+            sndpkt->hdr.ctr_flags = FIN;
+            sndpkt->hdr.ackno = send_base;
+            sndpkt->hdr.seqno = next_seqno;
             sendto(sockfd, sndpkt, TCP_HDR_SIZE, 0, (const struct sockaddr *)&serveraddr, serverlen);
         }
         // otherwise, create a packet with the data read
@@ -222,38 +225,30 @@ int main (int argc, char **argv)
         effective_window = (window_size - packets_in_flight);
 
         // Fast Retransmit (if applicable)
-            if(dupe_acks >= 3){
-                // reset dupe ACK counter
-                printf("3 duplicate ACKs accumulated. Starting fast retransmit.\n");
-                dupe_acks = 0;
+        if(dupe_acks >= 3){
+            // reset dupe ACK counter
+            printf("Fast retransmitting packet with seq %d.\n", sndpkt->hdr.seqno);
+            dupe_acks = 0;
 
-                // Read Data & Create Packet
-                fseek(fp, send_base, SEEK_SET); // rewind fp to send base
-                len = fread(buffer, 1, DATA_SIZE, fp);
-                // if EOF, send an empty packet to notify receiver of EOF
-                if (len <= 0){
-                    VLOG(INFO, "End Of File has been reached");
-                    sndpkt = make_packet(0);
-                }
-                // otherwise, create a packet with the data read
-                else{
-                    sndpkt = make_packet(len);
-                    memcpy(sndpkt->data, buffer, len);
-                    sndpkt->hdr.seqno = send_base;
-                }
-                // send packet
-                // VLOG(DEBUG, "Fast retransmitting packet %d to %s", next_seqno, inet_ntoa(serveraddr.sin_addr));
-                if(sendto(sockfd, sndpkt, TCP_HDR_SIZE + get_data_size(sndpkt), 0, (const struct sockaddr *)&serveraddr, serverlen) < 0){
-                    error("sendto");
-                }
-                // set fp to back to next seq # to be read, decrement effective window
-                fseek(fp, next_seqno, SEEK_SET); 
-                
-
-                retransmit = 1;  //Mark as duplicate for timer
-                acklen = len;
-                packets_in_flight++;
+            // Read Data & Create Packet
+            fseek(fp, send_base, SEEK_SET); // rewind fp to send base
+            len = fread(buffer, 1, DATA_SIZE, fp);
+            sndpkt = make_packet(len);
+            memcpy(sndpkt->data, buffer, len);
+            sndpkt->hdr.seqno = send_base;
+            // send packet
+            // VLOG(DEBUG, "Fast retransmitting packet %d to %s", next_seqno, inet_ntoa(serveraddr.sin_addr));
+            if(sendto(sockfd, sndpkt, TCP_HDR_SIZE + get_data_size(sndpkt), 0, (const struct sockaddr *)&serveraddr, serverlen) < 0){
+                error("sendto");
             }
+            // set fp to back to next seq # to be read, decrement effective window
+            fseek(fp, next_seqno, SEEK_SET); 
+            
+
+            retransmit = 1;  //Mark as duplicate for timer
+            acklen = len;
+            packets_in_flight++;
+        }
 
         // Send as many packets in effective window as doable
         while( window_size - packets_in_flight > 0){
@@ -264,6 +259,9 @@ int main (int argc, char **argv)
             if ( len <= 0){
                 VLOG(INFO, "End Of File has been reached");
                 sndpkt = make_packet(0);
+                sndpkt->hdr.ctr_flags = FIN;
+                sndpkt->hdr.ackno = send_base;
+                sndpkt->hdr.seqno = next_seqno;
                 sendto(sockfd, sndpkt, TCP_HDR_SIZE, 0, (const struct sockaddr *)&serveraddr, serverlen);
                 break;
             }
@@ -325,7 +323,6 @@ int main (int argc, char **argv)
         }
         // if ACK, check ACK number
         else if(recvpkt->hdr.ctr_flags == ACK){
-            printf("\n\n\n");
             printf("Received ACK with base: %d.\n", recvpkt->hdr.ackno);
             // if previous sequence has been ACKed, increment effective_window and send_base
             if(recvpkt->hdr.ackno >= send_base + acklen){
