@@ -197,10 +197,7 @@ int main (int argc, char **argv)
     {
         effective_window = (window_size - packets_in_flight);
 
-        // Send as many packets in effective window as doable
-        while( window_size - packets_in_flight > 0){
-
-            // Fast Retransmit (if applicable)
+        // Fast Retransmit (if applicable)
             if(dupe_acks >= 3){
                 // reset dupe ACK counter
                 printf("3 duplicate ACKs accumulated. Starting fast retransmit.\n");
@@ -215,8 +212,6 @@ int main (int argc, char **argv)
                 if (len <= 0){
                     VLOG(INFO, "End Of File has been reached");
                     sndpkt = make_packet(0);
-                    sendto(sockfd, sndpkt, TCP_HDR_SIZE, 0, (const struct sockaddr *)&serveraddr, serverlen);
-                    break;
                 }
                 // otherwise, create a packet with the data read
                 else{
@@ -239,6 +234,9 @@ int main (int argc, char **argv)
                 packets_in_flight++;
             }
 
+        // Send as many packets in effective window as doable
+        while( window_size - packets_in_flight > 0){
+
             // Read Data & Create Packet
             len = fread(buffer, 1, DATA_SIZE, fp);
             // if EOF, send an empty packet to notify receiver of EOF
@@ -254,16 +252,16 @@ int main (int argc, char **argv)
             sndpkt->hdr.seqno = next_seqno;
 
             // Send Packet
-            // if(rand()%50 != 0){
-            //     VLOG(DEBUG, "Sending packet %d to %s", next_seqno, inet_ntoa(serveraddr.sin_addr));
-            //     if(sendto(sockfd, sndpkt, TCP_HDR_SIZE + get_data_size(sndpkt), 0, (const struct sockaddr *)&serveraddr, serverlen) < 0){
-            //         error("sendto");
-            //     }
-            // }
-            VLOG(DEBUG, "Sending packet %d to %s", next_seqno, inet_ntoa(serveraddr.sin_addr));
-            if(sendto(sockfd, sndpkt, TCP_HDR_SIZE + get_data_size(sndpkt), 0, (const struct sockaddr *)&serveraddr, serverlen) < 0){
-                error("sendto");
+            if(rand()%100 != 0){
+                VLOG(DEBUG, "Sending packet %d to %s", next_seqno, inet_ntoa(serveraddr.sin_addr));
+                if(sendto(sockfd, sndpkt, TCP_HDR_SIZE + get_data_size(sndpkt), 0, (const struct sockaddr *)&serveraddr, serverlen) < 0){
+                    error("sendto");
+                }
             }
+            // VLOG(DEBUG, "Sending packet %d to %s", next_seqno, inet_ntoa(serveraddr.sin_addr));
+            // if(sendto(sockfd, sndpkt, TCP_HDR_SIZE + get_data_size(sndpkt), 0, (const struct sockaddr *)&serveraddr, serverlen) < 0){
+            //     error("sendto");
+            // }
             // increment next seq # to be sent, decrement effective window, increase packets in flight
             next_seqno = next_seqno + len;
             packets_in_flight++;
@@ -274,7 +272,6 @@ int main (int argc, char **argv)
                 acklen = len;
             }
         }
-
 
 
         // Receive ACK
@@ -334,7 +331,11 @@ int main (int argc, char **argv)
                     if(recvpkt->hdr.ackno > (send_base + acklen) ){
                         // get difference between ACK number and send base, divide and round up
                         int total_diff = recvpkt->hdr.ackno - (send_base);
+                        int total_remainder = (total_diff)%(DATA_SIZE);
                         packets_acked = (total_diff)/(DATA_SIZE);
+                        if(packets_acked > 0){
+                            packets_acked++;
+                        }
                         printf("Total Diff: %d | Total packets ACKed: %d | Total Accumulated ACKs: %d \n", total_diff, packets_acked, acc_acks);
                     }
                     printf("Total packets ACKed: %d | Total Accumulated ACKs: %d \n", packets_acked, acc_acks);
@@ -362,8 +363,9 @@ int main (int argc, char **argv)
                     slow_start = 0;
                 }
             }
-            // free(recvpkt);     
+               
         }
+        // free(sndpkt);  
         
     }
 

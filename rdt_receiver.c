@@ -125,6 +125,7 @@ int main(int argc, char **argv) {
         if(recvpkt->hdr.seqno == lastrecvseqnum){
             fseek(fp, recvpkt->hdr.seqno, SEEK_SET);
             fwrite(recvpkt->data, 1, recvpkt->hdr.data_size, fp);
+            sndpkt->hdr.ackno = recvpkt->hdr.seqno + recvpkt->hdr.data_size;
             lastrecvseqnum = recvpkt->hdr.seqno + recvpkt->hdr.data_size;
             
             // check buffer for any consecutive packets (entire array)
@@ -133,11 +134,11 @@ int main(int argc, char **argv) {
         }
         else{
             // attempt to buffer
-
+            sndpkt->hdr.ackno = lastrecvseqnum;
             // no change to lastrecvseqnum
             printf("Out of order packet received.\n");
         }
-        sndpkt->hdr.ackno = lastrecvseqnum;
+        
         sndpkt->hdr.ctr_flags = ACK;
         if (sendto(sockfd, sndpkt, TCP_HDR_SIZE, 0, 
                 (struct sockaddr *) &clientaddr, clientlen) < 0) {
@@ -147,5 +148,6 @@ int main(int argc, char **argv) {
         printf("\n\n\n");
     }
 
+    close(sockfd);
     return 0;
 }
