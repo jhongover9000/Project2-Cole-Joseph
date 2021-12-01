@@ -145,6 +145,7 @@ void stop_timer()
 
 //Recalcaulate the variance and timeout using the passed RTT
 void recalcTimeout(int sampleRTT){
+    printf("Recalculating time\n");
     estimatedRTT = (int)(((1.0-0.125) * estimatedRTT) + (0.125 * sampleRTT));
     devRTT = (1.0-0.25) * devRTT + 0.25 * abs(sampleRTT - estimatedRTT);
     timeout = (int) (estimatedRTT + 4 * devRTT);
@@ -340,7 +341,7 @@ int main (int argc, char **argv)
                 send_base = send_base + acklen;
 
                 // stop timer (restarts after iteration ends), check to see if rtt needs to be recalculated
-                stop_timer();
+                
                 if(retransmit == 0 && timedPacket <= send_base){
                     struct itimerval timerVal;
                     getitimer(ITIMER_REAL, &timerVal);
@@ -349,6 +350,11 @@ int main (int argc, char **argv)
                     printf("Recorded timer:%d fulltimer:%d\n", timerMilliseconds, fullTimer);
                     recalcTimeout(fullTimer - timerMilliseconds);
                     timer_running = 0;
+                    stop_timer();
+                }
+                else if(timedPacket <= send_base){
+                    timer_running = 0;
+                    stop_timer();
                 }
 
                 // free memory of send packet
