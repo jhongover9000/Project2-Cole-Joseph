@@ -87,10 +87,8 @@ int main(int argc, char **argv) {
     VLOG(DEBUG, "epoch time, bytes received, sequence number");
 
     clientlen = sizeof(clientaddr);
+
     while (1) {
-        /*
-         * recvfrom: receive a UDP datagram from a client
-         */
         //VLOG(DEBUG, "waiting from server \n");
         if (recvfrom(sockfd, buffer, MSS_SIZE, 0,
                 (struct sockaddr *) &clientaddr, (socklen_t *)&clientlen) < 0) {
@@ -98,6 +96,8 @@ int main(int argc, char **argv) {
         }
         recvpkt = (tcp_packet *) buffer;
         assert(get_data_size(recvpkt) <= DATA_SIZE);
+
+        // If entire file has been received
         if ( recvpkt->hdr.data_size == 0) {
             //VLOG(INFO, "End Of File has been reached");
             fclose(fp);
@@ -119,23 +119,32 @@ int main(int argc, char **argv) {
         VLOG(DEBUG, "%lu, %d, %d", tp.tv_sec, recvpkt->hdr.data_size, recvpkt->hdr.seqno);
 
         sndpkt = make_packet(0);
+        printf("Seq received: %d | Looking for: %d.\n", recvpkt->hdr.seqno, lastrecvseqnum);
 
         // If not out of order, dont discard (sequence number isnt too large)
         if(recvpkt->hdr.seqno == lastrecvseqnum){
             fseek(fp, recvpkt->hdr.seqno, SEEK_SET);
             fwrite(recvpkt->data, 1, recvpkt->hdr.data_size, fp);
-            sndpkt->hdr.ackno = recvpkt->hdr.seqno + recvpkt->hdr.data_size;
             lastrecvseqnum = recvpkt->hdr.seqno + recvpkt->hdr.data_size;
+            
+            // check buffer for any consecutive packets (entire array)
+            // if one exists, write it and 
+            
         }
         else{
+            // attempt to buffer
+
+            // no change to lastrecvseqnum
             printf("Out of order packet received.\n");
-            sndpkt->hdr.ackno = lastrecvseqnum;
         }
+        sndpkt->hdr.ackno = lastrecvseqnum;
         sndpkt->hdr.ctr_flags = ACK;
         if (sendto(sockfd, sndpkt, TCP_HDR_SIZE, 0, 
                 (struct sockaddr *) &clientaddr, clientlen) < 0) {
             error("ERROR in sendto");
         }
+
+        printf("\n\n\n");
     }
 
     return 0;
