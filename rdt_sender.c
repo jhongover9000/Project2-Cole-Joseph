@@ -232,9 +232,6 @@ int main (int argc, char **argv)
         gettimeofday(&tp, NULL);
         fprintf(fpt,"%lu, %d, %d, %d, %d, %d\n", tp.tv_sec, window_size, slow_start, ssthresh, send_base, packets_in_flight);
 
-        effective_window = (window_size - packets_in_flight);
-        window_end = send_base + (DATA_SIZE * window_size);
-
         // Fast Retransmit (if applicable)
         if(dupe_acks >= 3){
             // reset dupe ACK counter
@@ -264,16 +261,22 @@ int main (int argc, char **argv)
             packets_in_flight++;
         }
 
+        effective_window = (window_size - packets_in_flight);
+        window_end = send_base + (DATA_SIZE * window_size);
+
         // Send as many packets in effective window as doable
-        while( window_size - packets_in_flight > 0 && next_seqno <= window_end){
+        if(!(next_seqno <= window_end)){
+            printf("Blocking!\n");
+        }
+        while( window_size - packets_in_flight > 0){
             // at the end of the buffer, just keep sending the last packet to get the dupe ACKs
-            // if(next_seqno >= window_end){
-            //     sndpkt = make_packet(1);
-            //     sndpkt->hdr.seqno = next_seqno;
-            //     sendto(sockfd, sndpkt, TCP_HDR_SIZE, 0, (const struct sockaddr *)&serveraddr, serverlen);
-            //     packets_in_flight++;
-            //     break;
-            // }
+            if(next_seqno > window_end){
+                sndpkt = make_packet(0);
+                sndpkt->hdr.seqno = next_seqno;
+                sendto(sockfd, sndpkt, TCP_HDR_SIZE, 0, (const struct sockaddr *)&serveraddr, serverlen);
+                packets_in_flight++;
+                break;
+            }
 
             // Read Data & Create Packet
             len = fread(buffer, 1, DATA_SIZE, fp);
@@ -425,11 +428,11 @@ int main (int argc, char **argv)
                 }
 
                 // Packet Loss in Slow Start
-                if(slow_start){
-                    // set ssthresh and go into congestion avoidance
-                    ssthresh = max(window_size/2,2);
-                    slow_start = 0;
-                }
+                // if(slow_start){
+                //     // set ssthresh and go into congestion avoidance
+                //     ssthresh = max(window_size/2,2);
+                //     slow_start = 0;
+                // }
 
                 // free memory of send packet
                 // free(sndpkt);
