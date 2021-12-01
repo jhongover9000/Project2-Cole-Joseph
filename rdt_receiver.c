@@ -121,7 +121,7 @@ int main(int argc, char **argv) {
         sndpkt = make_packet(0);
 
         // If not out of order, dont discard (sequence number isnt too large)
-        if(recvpkt->hdr.seqno + recvpkt->hdr.data_size <= lastrecvseqnum + DATA_SIZE){
+        if(recvpkt->hdr.seqno == lastrecvseqnum){
             fseek(fp, recvpkt->hdr.seqno, SEEK_SET);
             fwrite(recvpkt->data, 1, recvpkt->hdr.data_size, fp);
             sndpkt->hdr.ackno = recvpkt->hdr.seqno + recvpkt->hdr.data_size;
