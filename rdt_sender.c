@@ -34,6 +34,7 @@ int effective_window = 1;   // number of packets available to send (cwnd - # of 
 
 int next_seqno;             // seq # of next packet to be sent
 int send_base = 0;          // seq # of next packet to be ACKed (window start)
+int window_end = 0;         // seq # of last packet in window (window end)
  
 int ssthresh = 10;       // -1 is the initial value that means infinity
 int slow_start = 1;         // 1 if slow start, 0 if congestion avoidance (additive increase)
@@ -223,11 +224,11 @@ int main (int argc, char **argv)
     while (1)
     {
         effective_window = (window_size - packets_in_flight);
+        window_end = send_base + (DATA_SIZE * window_size);
 
         // Fast Retransmit (if applicable)
         if(dupe_acks >= 3){
             // reset dupe ACK counter
-            printf("Fast retransmitting packet with seq %d.\n", sndpkt->hdr.seqno);
             dupe_acks = 0;
 
             // Read Data & Create Packet
@@ -236,6 +237,7 @@ int main (int argc, char **argv)
             sndpkt = make_packet(len);
             memcpy(sndpkt->data, buffer, len);
             sndpkt->hdr.seqno = send_base;
+            printf("Fast retransmitting packet with seq %d.\n", sndpkt->hdr.seqno);
             // send packet
             // VLOG(DEBUG, "Fast retransmitting packet %d to %s", next_seqno, inet_ntoa(serveraddr.sin_addr));
             if(sendto(sockfd, sndpkt, TCP_HDR_SIZE + get_data_size(sndpkt), 0, (const struct sockaddr *)&serveraddr, serverlen) < 0){
@@ -244,14 +246,21 @@ int main (int argc, char **argv)
             // set fp to back to next seq # to be read, decrement effective window
             fseek(fp, next_seqno, SEEK_SET); 
             
-
             retransmit = 1;  //Mark as duplicate for timer
             acklen = len;
             packets_in_flight++;
         }
 
         // Send as many packets in effective window as doable
-        while( window_size - packets_in_flight > 0){
+        while( window_size - packets_in_flight > 0 && next_seqno <= window_end){
+            // at the end of the buffer, just keep sending the last packet
+            if(next_seqno >= window_end){
+                sndpkt = make_packet(1);
+                sndpkt->hdr.seqno = next_seqno;
+                sendto(sockfd, sndpkt, TCP_HDR_SIZE, 0, (const struct sockaddr *)&serveraddr, serverlen);
+                packets_in_flight++;
+                break;
+            }
 
             // Read Data & Create Packet
             len = fread(buffer, 1, DATA_SIZE, fp);
@@ -260,9 +269,9 @@ int main (int argc, char **argv)
                 VLOG(INFO, "End Of File has been reached");
                 sndpkt = make_packet(0);
                 sndpkt->hdr.ctr_flags = FIN;
-                sndpkt->hdr.ackno = send_base;
-                sndpkt->hdr.seqno = next_seqno;
+                sndpkt->hdr.ackno = next_seqno;
                 sendto(sockfd, sndpkt, TCP_HDR_SIZE, 0, (const struct sockaddr *)&serveraddr, serverlen);
+                packets_in_flight++;
                 break;
             }
             // otherwise, create a packet with the data read
@@ -271,16 +280,19 @@ int main (int argc, char **argv)
             sndpkt->hdr.seqno = next_seqno;
 
             // Send Packet
-            if(rand()%100 != 0){
-                VLOG(DEBUG, "Sending packet %d to %s", next_seqno, inet_ntoa(serveraddr.sin_addr));
-                if(sendto(sockfd, sndpkt, TCP_HDR_SIZE + get_data_size(sndpkt), 0, (const struct sockaddr *)&serveraddr, serverlen) < 0){
-                    error("sendto");
-                }
-            }
-            // VLOG(DEBUG, "Sending packet %d to %s", next_seqno, inet_ntoa(serveraddr.sin_addr));
-            // if(sendto(sockfd, sndpkt, TCP_HDR_SIZE + get_data_size(sndpkt), 0, (const struct sockaddr *)&serveraddr, serverlen) < 0){
-            //     error("sendto");
+            // if(rand()%50 == 0 && window_size > 10){
+                
             // }
+            // else{
+            //     VLOG(DEBUG, "Sending packet %d to %s", next_seqno, inet_ntoa(serveraddr.sin_addr));
+            //     if(sendto(sockfd, sndpkt, TCP_HDR_SIZE + get_data_size(sndpkt), 0, (const struct sockaddr *)&serveraddr, serverlen) < 0){
+            //         error("sendto");
+            //     }
+            // }
+            VLOG(DEBUG, "Sending packet %d to %s", next_seqno, inet_ntoa(serveraddr.sin_addr));
+            if(sendto(sockfd, sndpkt, TCP_HDR_SIZE + get_data_size(sndpkt), 0, (const struct sockaddr *)&serveraddr, serverlen) < 0){
+                error("sendto");
+            }
             // increment next seq # to be sent, decrement effective window, increase packets in flight
             next_seqno = next_seqno + len;
             packets_in_flight++;
@@ -296,22 +308,20 @@ int main (int argc, char **argv)
 
 
         // Receive ACK
-        if(recvfrom(sockfd, buffer, MSS_SIZE, 0,
-            (struct sockaddr *) &serveraddr, (socklen_t *)&serverlen) < 0)
-        {
+        if(recvfrom(sockfd, buffer, MSS_SIZE, 0,(struct sockaddr *) &serveraddr, (socklen_t *)&serverlen) < 0){
             error("recvfrom");
         }
 
         // create packet
         recvpkt = (tcp_packet *)buffer;
 
-        printf("\n\n\n");
+        printf("\e[1;1H\e[2J");
         if(slow_start){printf("Slow Start\n");}
         else{printf("Congestion Avoidance\n");}
         printf("Effective Window: %d | Control Window: %d | Packets in Flight: %d\n", effective_window, window_size, packets_in_flight);
         printf("Data Size: %d \n", get_data_size(recvpkt));
         printf("Packet ackno: %d \n", recvpkt->hdr.ackno);
-        printf("Send base, len: %d %d\n", send_base, acklen);
+        printf("Send base, len: %d %d | Next seq: %d\n", send_base, acklen, next_seqno);
         assert(get_data_size(recvpkt) <= DATA_SIZE);
 
         // if FIN (file fully received), stop execution
@@ -347,6 +357,7 @@ int main (int argc, char **argv)
                 // if slow start, increase the window to send additional packet
                 if(slow_start){
                     window_size++;
+                    printf("Incrementing window size. Cwnd: %d\n", window_size);
                     // debugging
                     // printf("Window Size: %d | Effective Window: %d or %d. \n", window_size, effective_window, window_size - packets_in_flight);
                     // if ssthresh is reached, switch to congestion avoidance
@@ -373,9 +384,9 @@ int main (int argc, char **argv)
                     
                     // if the entire cwnd size has been ACKed, increase window size by 1
                     if(acc_acks >= window_size){
-                        printf("Incrementing window size.\n");
                         acc_acks = 0;
                         window_size++;
+                        printf("Incrementing window size. Cwnd: %d\n", window_size);
                     }
                 }
             }

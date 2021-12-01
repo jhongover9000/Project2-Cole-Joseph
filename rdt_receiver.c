@@ -108,6 +108,7 @@ int main(int argc, char **argv) {
         VLOG(DEBUG, "%lu, %d, %d", tp.tv_sec, recvpkt->hdr.data_size, recvpkt->hdr.seqno);
 
         sndpkt = make_packet(0);
+        printf("\e[1;1H\e[2J");
         printf("Seq received: %d | Looking for: %d.\n", recvpkt->hdr.seqno, lastrecvseqnum);
 
         // If not out of order, dont discard (sequence number isnt too large)
@@ -120,7 +121,7 @@ int main(int argc, char **argv) {
             // if one exists, write it and 
             
         }
-        else if (recvpkt->hdr.seqno >= lastrecvseqnum){
+        else if (recvpkt->hdr.seqno > lastrecvseqnum){
             // attempt to buffer
 
             // no change to lastrecvseqnum
@@ -129,7 +130,7 @@ int main(int argc, char **argv) {
 
         // If FIN packet arrives
         if (recvpkt->hdr.ctr_flags == FIN) {
-            if(recvpkt->hdr.seqno == recvpkt->hdr.ackno){
+            if(recvpkt->hdr.ackno == lastrecvseqnum){
                 //VLOG(INFO, "End Of File has been reached");
                 fclose(fp);
                 sndpkt = make_packet(0);
