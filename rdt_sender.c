@@ -122,7 +122,7 @@ void resend_packets(int sig)
         }
 
     // }
-        packets_in_flight++;
+        // packets_in_flight++;
         // set fp to back to next seq # to be read, decrement effective window
         fseek(fp, next_seqno, SEEK_SET);
     }
@@ -257,7 +257,7 @@ int main (int argc, char **argv)
             
             retransmit = 1;  //Mark as duplicate for timer
             acklen = len;
-            packets_in_flight++;
+            // packets_in_flight++;
         }
 
         // Send as many packets in effective window as doable
@@ -413,14 +413,14 @@ int main (int argc, char **argv)
                 dupe_acks++;
                 printf("Duplicate ACK detected. Current duplicate ACKs: %d.\n", dupe_acks);
                 // one less packet is in flight
-                packets_in_flight--;
+                // packets_in_flight--;
 
                 // Packet Loss in Slow Start
-                if(slow_start){
-                    // set ssthresh and go into congestion avoidance
-                    ssthresh = max(window_size/2,2);
-                    slow_start = 0;
-                }
+                // if(slow_start){
+                //     // set ssthresh and go into congestion avoidance
+                //     ssthresh = max(window_size/2,2);
+                //     slow_start = 0;
+                // }
 
                 // free memory of send packet
                 // free(sndpkt);

@@ -43,6 +43,12 @@ int main(int argc, char **argv) {
     struct timeval tp;
     int lastrecvseqnum = 0;
 
+    //Out of order
+    tcp_packet out_of_order[10];
+    int head = 0; //Where is the next out of order packet
+    int tail = 0; //Where to put the next out of order packet
+    int lastBuffered = 0; //Used to make sure packets are not buffered out of order in buffer
+
     // Check command line arguments
     if (argc != 3) {
         fprintf(stderr, "usage: %s <port> FILE_RECVD\n", argv[0]);
@@ -116,6 +122,21 @@ int main(int argc, char **argv) {
             fseek(fp, recvpkt->hdr.seqno, SEEK_SET);
             fwrite(recvpkt->data, 1, recvpkt->hdr.data_size, fp);
             lastrecvseqnum = recvpkt->hdr.seqno + recvpkt->hdr.data_size;
+
+            //If packets can be written to file from buffer do so now
+            if(tail != head){
+                printf("Buffer has %d at %d %d\n", out_of_order[head].hdr.seqno, head, tail);
+            }
+            while(tail != head && out_of_order[head].hdr.seqno == lastrecvseqnum){
+                printf("USING THE BUFFER\n");
+                printf("writing %d\n", out_of_order[head].hdr.seqno);
+                fseek(fp, out_of_order[head].hdr.seqno, SEEK_SET);
+                fwrite(out_of_order[head].data, 1, out_of_order[head].hdr.data_size, fp);
+                lastrecvseqnum = out_of_order[head].hdr.seqno + out_of_order[head].hdr.data_size;
+                head = (head + 1) % 10;
+                printf("New Buffer: %d at %d %d\n", out_of_order[head].hdr.seqno, head, tail);
+            }
+
             
             // check buffer for any consecutive packets (entire array)
             // if one exists, write it and 
@@ -123,6 +144,16 @@ int main(int argc, char **argv) {
         }
         else if (recvpkt->hdr.seqno > lastrecvseqnum){
             // attempt to buffer
+            //See if there is space
+            if((tail + 1) % 10 != head){
+                //Make sure the packet being written to buffer is not smaller than the last packet in buffer
+                if(tail == head || recvpkt->hdr.seqno > lastBuffered){
+                    printf("Writing %d to buffer\n", recvpkt->hdr.seqno);
+                    out_of_order[tail] = *recvpkt;
+                    tail = (tail + 1) % 10;
+                    lastBuffered = recvpkt->hdr.seqno;
+                }
+            }
 
             // no change to lastrecvseqnum
             printf("Out of order packet received.\n");
