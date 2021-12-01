@@ -36,7 +36,7 @@ int next_seqno;             // seq # of next packet to be sent
 int send_base = 0;          // seq # of next packet to be ACKed (window start)
 int window_end = 0;         // seq # of last packet in window (window end)
  
-int ssthresh = 10;       // -1 is the initial value that means infinity
+int ssthresh = -1;       // -1 is the initial value that means infinity
 int slow_start = 1;         // 1 if slow start, 0 if congestion avoidance (additive increase)
 int acc_acks = 0;           // accumulated ACKs
 
@@ -217,22 +217,14 @@ int main (int argc, char **argv)
 
     // debug (coinflip)
     srand(time(0));
-    FILE *fpt;
-    fpt = fopen("CWND.csv", "w+");
-    fprintf(fpt,"Time, CWND, SlowStart?, ssthresh\n");
 
-    // TCP Implementation
+    // Main Execution
     init_timer(timeout, resend_packets);
     next_seqno = 0;
     while (1)
     {
         effective_window = (window_size - packets_in_flight);
         window_end = send_base + (DATA_SIZE * window_size);
-
-        //Log CWND
-        struct timeval tp;
-        gettimeofday(&tp, NULL);
-        fprintf(fpt,"%lu, %d, %d, %d\n", tp.tv_sec, window_size, slow_start, ssthresh);
 
         // Fast Retransmit (if applicable)
         if(dupe_acks >= 3){
@@ -261,7 +253,7 @@ int main (int argc, char **argv)
 
         // Send as many packets in effective window as doable
         while( window_size - packets_in_flight > 0 && next_seqno <= window_end){
-            // at the end of the buffer, just keep sending the last packet
+            // at the end of the buffer, just keep sending the last packet to get the dupe ACKs
             if(next_seqno >= window_end){
                 sndpkt = make_packet(1);
                 sndpkt->hdr.seqno = next_seqno;
@@ -288,7 +280,7 @@ int main (int argc, char **argv)
             sndpkt->hdr.seqno = next_seqno;
 
             // Send Packet
-            // if(rand()%50 == 0 && window_size > 10){
+            // if(rand()%80 == 0 && window_size > 10){
                 
             // }
             // else{
@@ -326,7 +318,7 @@ int main (int argc, char **argv)
         printf("\e[1;1H\e[2J");
         if(slow_start){printf("Slow Start\n");}
         else{printf("Congestion Avoidance\n");}
-        printf("Effective Window: %d | Control Window: %d | Packets in Flight: %d\n", effective_window, window_size, packets_in_flight);
+        printf("Effective Window: %d | Control Window: %d | Packets in Flight: %d | ssthresh: %d\n", effective_window, window_size, packets_in_flight, ssthresh);
         printf("Data Size: %d \n", get_data_size(recvpkt));
         printf("Packet ackno: %d \n", recvpkt->hdr.ackno);
         printf("Send base, len: %d %d | Next seq: %d\n", send_base, acklen, next_seqno);
@@ -411,13 +403,16 @@ int main (int argc, char **argv)
                     ssthresh = max(window_size/2,2);
                     slow_start = 0;
                 }
+
+                // free memory of send packet
+                free(sndpkt);
             }
                
         }
         // free(sndpkt);  
         
     }
-    fclose(fpt);
+
     close(sockfd);
     return 0;
 
