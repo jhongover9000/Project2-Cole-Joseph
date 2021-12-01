@@ -232,13 +232,14 @@ int main (int argc, char **argv)
         gettimeofday(&tp, NULL);
         fprintf(fpt,"%lu, %d, %d, %d, %d, %d\n", tp.tv_sec, window_size, slow_start, ssthresh, send_base, packets_in_flight);
 
-        effective_window = (window_size - packets_in_flight);
-        window_end = send_base + (DATA_SIZE * window_size);
-
         // Fast Retransmit (if applicable)
         if(dupe_acks >= 3){
             // reset dupe ACK counter
             dupe_acks = 0;
+            ssthresh = max(window_size/2,2);
+            // packets_in_flight = 0;
+            slow_start = 1;
+            window_size = 1;
 
             // Read Data & Create Packet
             fseek(fp, send_base, SEEK_SET); // rewind fp to send base
@@ -260,16 +261,22 @@ int main (int argc, char **argv)
             // packets_in_flight++;
         }
 
+        effective_window = (window_size - packets_in_flight);
+        window_end = send_base + (DATA_SIZE * window_size);
+
         // Send as many packets in effective window as doable
-        while( window_size - packets_in_flight > 0 && next_seqno <= window_end){
+        if(!(next_seqno <= window_end)){
+            printf("Blocking!\n");
+        }
+        while( window_size - packets_in_flight > 0){
             // at the end of the buffer, just keep sending the last packet to get the dupe ACKs
-            // if(next_seqno >= window_end){
-            //     sndpkt = make_packet(1);
-            //     sndpkt->hdr.seqno = next_seqno;
-            //     sendto(sockfd, sndpkt, TCP_HDR_SIZE, 0, (const struct sockaddr *)&serveraddr, serverlen);
-            //     packets_in_flight++;
-            //     break;
-            // }
+            if(next_seqno > window_end){
+                sndpkt = make_packet(0);
+                sndpkt->hdr.seqno = next_seqno;
+                sendto(sockfd, sndpkt, TCP_HDR_SIZE, 0, (const struct sockaddr *)&serveraddr, serverlen);
+                packets_in_flight++;
+                break;
+            }
 
             // Read Data & Create Packet
             len = fread(buffer, 1, DATA_SIZE, fp);
@@ -347,8 +354,6 @@ int main (int argc, char **argv)
             printf("Received ACK with base: %d.\n", recvpkt->hdr.ackno);
             // if previous sequence has been ACKed, increment effective_window and send_base
             if(recvpkt->hdr.ackno >= send_base + acklen){
-                packets_in_flight--;
-                send_base = send_base + acklen;
 
                 // stop timer (restarts after iteration ends), check to see if rtt needs to be recalculated
                 printf("Starting timer sequence\n");
@@ -382,6 +387,8 @@ int main (int argc, char **argv)
                     if(window_size == ssthresh){
                         slow_start = 0;
                     }
+                    packets_in_flight--;
+                    send_base = send_base + acklen;
                 }
                 // if congestion avoidance, increment the accumulated ACK based on the size of data
                 else{
@@ -399,6 +406,9 @@ int main (int argc, char **argv)
                     }
                     printf("Total packets ACKed: %d | Total Accumulated ACKs: %d \n", packets_acked, acc_acks);
                     acc_acks += packets_acked;
+                    packets_in_flight -= packets_acked;
+                    if(packets_in_flight < 0){packets_in_flight = 0;}
+                    send_base = send_base + acklen;
                     
                     // if the entire cwnd size has been ACKed, increase window size by 1
                     if(acc_acks >= window_size){
