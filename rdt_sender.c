@@ -218,12 +218,20 @@ int main (int argc, char **argv)
 
     // debug (coinflip)
     srand(time(0));
+    FILE *fpt;
+    fpt = fopen("CWND.csv", "w+");
+    fprintf(fpt,"Time, CWND, SlowStart?, ssthresh, send_base, packets_flying\n");
+    struct timeval tp;
 
     // Main Execution
     init_timer(timeout, resend_packets);
     next_seqno = 0;
     while (1)
     {
+        //Logging
+        gettimeofday(&tp, NULL);
+        fprintf(fpt,"%lu, %d, %d, %d, %d, %d\n", tp.tv_sec, window_size, slow_start, ssthresh, send_base, packets_in_flight);
+
         effective_window = (window_size - packets_in_flight);
         window_end = send_base + (DATA_SIZE * window_size);
 
@@ -255,13 +263,13 @@ int main (int argc, char **argv)
         // Send as many packets in effective window as doable
         while( window_size - packets_in_flight > 0 && next_seqno <= window_end){
             // at the end of the buffer, just keep sending the last packet to get the dupe ACKs
-            if(next_seqno >= window_end){
-                sndpkt = make_packet(1);
-                sndpkt->hdr.seqno = next_seqno;
-                sendto(sockfd, sndpkt, TCP_HDR_SIZE, 0, (const struct sockaddr *)&serveraddr, serverlen);
-                packets_in_flight++;
-                break;
-            }
+            // if(next_seqno >= window_end){
+            //     sndpkt = make_packet(1);
+            //     sndpkt->hdr.seqno = next_seqno;
+            //     sendto(sockfd, sndpkt, TCP_HDR_SIZE, 0, (const struct sockaddr *)&serveraddr, serverlen);
+            //     packets_in_flight++;
+            //     break;
+            // }
 
             // Read Data & Create Packet
             len = fread(buffer, 1, DATA_SIZE, fp);
@@ -305,6 +313,8 @@ int main (int argc, char **argv)
                 retransmit = 0;
                 timedPacket = next_seqno;
             }
+
+            free(sndpkt); 
         }
 
 
@@ -328,7 +338,7 @@ int main (int argc, char **argv)
         // if FIN (file fully received), stop execution
         if(recvpkt->hdr.ctr_flags == FIN){
             printf("File has been transferred! Exiting...\n");
-            free(sndpkt);
+            // free(sndpkt);
             close(sockfd);
             exit(EXIT_SUCCESS);
         }
@@ -341,7 +351,7 @@ int main (int argc, char **argv)
                 send_base = send_base + acklen;
 
                 // stop timer (restarts after iteration ends), check to see if rtt needs to be recalculated
-                
+                printf("Starting timer sequence\n");
                 if(retransmit == 0 && timedPacket <= send_base){
                     struct itimerval timerVal;
                     getitimer(ITIMER_REAL, &timerVal);
@@ -352,13 +362,15 @@ int main (int argc, char **argv)
                     timer_running = 0;
                     stop_timer();
                 }
+                //Stop timer as a retransmitted packet has been recived
                 else if(timedPacket <= send_base){
                     timer_running = 0;
                     stop_timer();
                 }
+                printf("End timer sequence\n");
 
                 // free memory of send packet
-                free(sndpkt);
+                // free(sndpkt);
 
                 // if slow start, increase the window to send additional packet
                 if(slow_start){
@@ -411,14 +423,13 @@ int main (int argc, char **argv)
                 }
 
                 // free memory of send packet
-                free(sndpkt);
+                // free(sndpkt);
             }
                
         }
-        // free(sndpkt);  
-        
-    }
-
+        // free(sndpkt); 
+    } 
+    fclose(fpt);
     close(sockfd);
     return 0;
 
