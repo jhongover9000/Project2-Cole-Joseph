@@ -33,6 +33,12 @@ int send_base = 0;
 int window_size = 10;
 int effective_window = 10;
 int timer_running = 0; //0 if timer is not running
+int timedPacket = 0; //The ack the timer should be looking for to stop
+
+int timeout = 120; //Timeout value in milliseconds for the timer
+int retransmit = 0; //Flag to set if the timer is running on a retranmitted packet
+float devRTT = 0;
+int estimatedRTT = 100; //Estimated round trip time
 
 int sockfd, serverlen;
 struct sockaddr_in serveraddr;
@@ -44,13 +50,32 @@ sigset_t sigmask;
 FILE *fp;
 int acklen;
 
+
+int done = 0; // Flag if done 
+
 // =============================================================================
 // =============================================================================
 // Functions
 
+
+// Start Timer
+void start_timer()
+{
+    sigprocmask(SIG_UNBLOCK, &sigmask, NULL);
+    setitimer(ITIMER_REAL, &timer, NULL);
+}
+
+// Stop Timer
+void stop_timer()
+{
+    sigprocmask(SIG_BLOCK, &sigmask, NULL);
+}
+
+
 // Resend Packets (on timeout)
 void resend_packets(int sig)
 {
+    retransmit = 1;
     if (sig == SIGALRM)
     {
         //Resend all packets range between 
@@ -60,7 +85,7 @@ void resend_packets(int sig)
         fseek( fp, send_base, SEEK_SET); //Rewind fp to sendBase
         int len = 0;
         char buffer[DATA_SIZE];
-        while(resent_seq < next_seqno){
+        // while(resent_seq < next_seqno){
             
             //Read in data
             len = fread(buffer, 1, DATA_SIZE, fp);
@@ -71,7 +96,8 @@ void resend_packets(int sig)
                 sndpkt = make_packet(0);
                 sendto(sockfd, sndpkt, TCP_HDR_SIZE,  0,
                         (const struct sockaddr *)&serveraddr, serverlen);
-                break;
+                // break;
+                done = 1;
             }
             sndpkt = make_packet(len);
             memcpy(sndpkt->data, buffer, len);
@@ -93,20 +119,24 @@ void resend_packets(int sig)
                 error("sendto");
             }
         }
-    }
+
+        //Restart timer
+    // }
 }
 
-// Start Timer
-void start_timer()
-{
-    sigprocmask(SIG_UNBLOCK, &sigmask, NULL);
-    setitimer(ITIMER_REAL, &timer, NULL);
-}
+//Recalcaulate the variance and timeout using the passed RTT
+void recalcTimeout(int sampleRTT){
+    estimatedRTT = (int)(((1.0-0.125) * estimatedRTT) + (0.125 * sampleRTT));
+    devRTT = (1.0-0.25) * devRTT + 0.25 * abs(sampleRTT - estimatedRTT);
+    timeout = (int) (estimatedRTT + 4 * devRTT);
 
-// Stop Timer
-void stop_timer()
-{
-    sigprocmask(SIG_BLOCK, &sigmask, NULL);
+    //Set the timer to have the new timeout
+    printf("timeout:%d rtt:%d dev:%f sample:%d\n", timeout, estimatedRTT, devRTT, sampleRTT);
+    printf("%ld %ld %ld %ld <- timers \n", timer.it_interval.tv_sec, timer.it_interval.tv_usec, timer.it_value.tv_sec, timer.it_value.tv_usec);
+    timer.it_interval.tv_sec = timeout / 1000;    // sets an interval of the timer
+    timer.it_interval.tv_usec = (timeout % 1000) * 1000;  
+    timer.it_value.tv_sec = timeout / 1000;       // sets an initial value
+    timer.it_value.tv_usec = (timeout % 1000) * 1000;
 }
 
 /*
@@ -169,7 +199,7 @@ int main (int argc, char **argv)
     assert(MSS_SIZE - TCP_HDR_SIZE > 0);
 
     // Go Back N Implementation
-    init_timer(RETRY, resend_packets);
+    init_timer(timeout, resend_packets);
     next_seqno = 0;
     while (1)
     {
@@ -206,11 +236,13 @@ int main (int argc, char **argv)
                 error("sendto");
             }
 
-            // If first packet off, start timer
+            // If timer off, start timer
             if(timer_running == 0){
                 start_timer();
                 timer_running = 1;
                 acklen = len;
+                retransmit = 0;
+                timedPacket = next_seqno;
             }
         }
 
@@ -239,13 +271,30 @@ int main (int argc, char **argv)
             printf("Packet ackno: %d \n", recvpkt->hdr.ackno);
             printf("Send base, len: %d %d\n", send_base, acklen);
             assert(get_data_size(recvpkt) <= DATA_SIZE);
-        } while(recvpkt->hdr.ackno < send_base+acklen);
+        } while(recvpkt->hdr.ackno < send_base+acklen && done == 0);
 
         //The expected ack has been recieved
         effective_window++;
         send_base = send_base+acklen;
         stop_timer();
-        timer_running = 0;
+        //Recalculate the timeout if the expected ack was not a duplicate and it has the expected ack number
+        if(retransmit == 0 && timedPacket == send_base){
+            struct itimerval timerVal;
+            getitimer(ITIMER_REAL, &timerVal);
+            int timerMilliseconds = timerVal.it_value.tv_sec*1000 + (timerVal.it_value.tv_usec/1000);
+            int fullTimer = timer.it_value.tv_sec*1000 + (timer.it_value.tv_usec/1000);
+            printf("%ld %ld %ld %ld\n", timerVal.it_interval.tv_sec, timerVal.it_interval.tv_usec, timerVal.it_value.tv_sec, timerVal.it_value.tv_usec);
+            printf("Recorded timer:%d fulltimer:%d\n", timerMilliseconds, fullTimer);
+            recalcTimeout(fullTimer - timerMilliseconds);
+            timer_running = 0;
+        }
+        // else if (retransmit == 0){
+        //     printf("Looking for packet %d for timing, just got %d\n", timedPacket, send_base);
+        // }
+        // else{
+        //     printf("This was a retranmitted packet\n");
+        // }
+
             /*resend pack if dont recv ack */
         // } while(recvpkt->hdr.ackno != send_base+acklen);
 
