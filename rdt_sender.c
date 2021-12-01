@@ -217,14 +217,22 @@ int main (int argc, char **argv)
 
     // debug (coinflip)
     srand(time(0));
+    FILE *fpt;
+    fpt = fopen("CWND.csv", "w+");
+    fprintf(fpt,"Time, CWND, SlowStart?, ssthresh\n");
 
-    // Go Back N Implementation
+    // TCP Implementation
     init_timer(timeout, resend_packets);
     next_seqno = 0;
     while (1)
     {
         effective_window = (window_size - packets_in_flight);
         window_end = send_base + (DATA_SIZE * window_size);
+
+        //Log CWND
+        struct timeval tp;
+        gettimeofday(&tp, NULL);
+        fprintf(fpt,"%lu, %d, %d, %d\n", tp.tv_sec, window_size, slow_start, ssthresh);
 
         // Fast Retransmit (if applicable)
         if(dupe_acks >= 3){
@@ -409,7 +417,7 @@ int main (int argc, char **argv)
         // free(sndpkt);  
         
     }
-
+    fclose(fpt);
     close(sockfd);
     return 0;
 
