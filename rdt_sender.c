@@ -418,6 +418,8 @@ int main (int argc, char **argv)
                     recalcTimeout(fullTimer - timerMilliseconds);
                     timer_running = 0;
                     stop_timer();
+
+                    //Start timer on next packet
                 }
                 // Stop timer as a retransmitted packet has been recived
                 else if(timedPacket <= send_base){
