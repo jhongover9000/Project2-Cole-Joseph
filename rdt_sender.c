@@ -89,7 +89,7 @@ void resend_packets(int sig)
     {
         // Set ssthresh and reset cwnd
         ssthresh = max(window_size/2,2);
-        packets_in_flight = 0;
+        // packets_in_flight = 0;
         slow_start = 1;
         window_size = 1;
 
@@ -247,6 +247,9 @@ int main (int argc, char **argv)
             sndpkt = make_packet(len);
             memcpy(sndpkt->data, buffer, len);
             sndpkt->hdr.seqno = send_base;
+            // if(len == 0){
+            //     printf("1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n");
+            // }
             printf("Fast retransmitting packet with seq %d.\n", sndpkt->hdr.seqno);
             // send packet
             // VLOG(DEBUG, "Fast retransmitting packet %d to %s", next_seqno, inet_ntoa(serveraddr.sin_addr));
@@ -266,17 +269,17 @@ int main (int argc, char **argv)
 
         // Send as many packets in effective window as doable
         if(!(next_seqno <= window_end)){
-            printf("Blocking!\n");
+            printf("Blocking! Timer: %d\n", timer_running);
         }
         while( window_size - packets_in_flight > 0){
             // at the end of the buffer, just keep sending the last packet to get the dupe ACKs
-            if(next_seqno > window_end){
-                sndpkt = make_packet(0);
-                sndpkt->hdr.seqno = next_seqno;
-                sendto(sockfd, sndpkt, TCP_HDR_SIZE, 0, (const struct sockaddr *)&serveraddr, serverlen);
-                packets_in_flight++;
-                break;
-            }
+            // if(next_seqno > window_end){
+            //     sndpkt = make_packet(0);
+            //     sndpkt->hdr.seqno = next_seqno;
+            //     sendto(sockfd, sndpkt, TCP_HDR_SIZE, 0, (const struct sockaddr *)&serveraddr, serverlen);
+            //     packets_in_flight++;
+            //     break;
+            // }
 
             // Read Data & Create Packet
             len = fread(buffer, 1, DATA_SIZE, fp);
@@ -294,7 +297,9 @@ int main (int argc, char **argv)
             sndpkt = make_packet(len);
             memcpy(sndpkt->data, buffer, len);
             sndpkt->hdr.seqno = next_seqno;
-
+            // if(len == 0){
+            //     printf("0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n");
+            // }
             // Send Packet
             // if(rand()%80 == 0 && window_size > 10){
                 

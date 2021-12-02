@@ -46,7 +46,7 @@ int main(int argc, char **argv) {
     //Out of order
     int out_of_order_num[10];
     int out_of_order_size[10];
-    char out_of_order_data[10][1500];
+    char out_of_order_data[10][1456];
     int head = 0; //Where is the next out of order packet
     int tail = 0; //Where to put the next out of order packet
     int lastBuffered = 0; //Used to make sure packets are not buffered out of order in buffer
@@ -132,6 +132,8 @@ int main(int argc, char **argv) {
             while(tail != head && out_of_order_num[head] == lastrecvseqnum){
                 printf("USING THE BUFFER\n");
                 printf("writing %d\n", out_of_order_num[head]);
+                printf("of size %d\n", out_of_order_size[head]);
+                printf("writing \n%s\n\n", out_of_order_data[head]);
                 fseek(fp, out_of_order_num[head], SEEK_SET);
                 fwrite(out_of_order_data[head], 1, out_of_order_size[head], fp);
                 lastrecvseqnum = out_of_order_num[head] + out_of_order_size[head];
@@ -149,13 +151,18 @@ int main(int argc, char **argv) {
             //See if there is space
             if((tail + 1) % 10 != head){
                 //Make sure the packet being written to buffer is not smaller than the last packet in buffer
-                if(tail == head || recvpkt->hdr.seqno > lastBuffered){
-                    printf("Writing %d to buffer\n", recvpkt->hdr.seqno);
-                    out_of_order_num[tail] = recvpkt->hdr.seqno;
-                    out_of_order_size[tail] = recvpkt->hdr.data_size;
-                    strcpy(out_of_order_data[tail], recvpkt->data);
-                    tail = (tail + 1) % 10;
-                    lastBuffered = recvpkt->hdr.seqno;
+                if(tail == head || recvpkt->hdr.seqno >= lastBuffered){
+                    //Dont buffer ones with no size
+                    // if(recvpkt->hdr.data_size > 0){
+                        printf("Writing %d to buffer\n", recvpkt->hdr.seqno);
+                        // printf("Current:%s\n\n", recvpkt->data);
+                        out_of_order_num[tail] = recvpkt->hdr.seqno;
+                        out_of_order_size[tail] = recvpkt->hdr.data_size;
+                        strcpy(out_of_order_data[tail], recvpkt->data);
+                        // printf("Saved:%s\n\n", out_of_order_data[tail]);
+                        tail = (tail + 1) % 10;
+                        lastBuffered = recvpkt->hdr.seqno;
+                    // }
                 }
             }
 
