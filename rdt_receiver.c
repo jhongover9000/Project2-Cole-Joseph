@@ -44,7 +44,9 @@ int main(int argc, char **argv) {
     int lastrecvseqnum = 0;
 
     //Out of order
-    tcp_packet out_of_order[10];
+    int out_of_order_num[10];
+    int out_of_order_size[10];
+    char out_of_order_data[10][1500];
     int head = 0; //Where is the next out of order packet
     int tail = 0; //Where to put the next out of order packet
     int lastBuffered = 0; //Used to make sure packets are not buffered out of order in buffer
@@ -125,16 +127,16 @@ int main(int argc, char **argv) {
 
             //If packets can be written to file from buffer do so now
             if(tail != head){
-                printf("Buffer has %d at %d %d\n", out_of_order[head].hdr.seqno, head, tail);
+                printf("Buffer has %d at %d %d\n", out_of_order_num[head], head, tail);
             }
-            while(tail != head && out_of_order[head].hdr.seqno == lastrecvseqnum){
+            while(tail != head && out_of_order_num[head] == lastrecvseqnum){
                 printf("USING THE BUFFER\n");
-                printf("writing %d\n", out_of_order[head].hdr.seqno);
-                fseek(fp, out_of_order[head].hdr.seqno, SEEK_SET);
-                fwrite(out_of_order[head].data, 1, out_of_order[head].hdr.data_size, fp);
-                lastrecvseqnum = out_of_order[head].hdr.seqno + out_of_order[head].hdr.data_size;
+                printf("writing %d\n", out_of_order_num[head]);
+                fseek(fp, out_of_order_num[head], SEEK_SET);
+                fwrite(out_of_order_data[head], 1, out_of_order_size[head], fp);
+                lastrecvseqnum = out_of_order_num[head] + out_of_order_size[head];
                 head = (head + 1) % 10;
-                printf("New Buffer: %d at %d %d\n", out_of_order[head].hdr.seqno, head, tail);
+                printf("New Buffer: %d at %d %d\n", out_of_order_num[head], head, tail);
             }
 
             
@@ -149,7 +151,9 @@ int main(int argc, char **argv) {
                 //Make sure the packet being written to buffer is not smaller than the last packet in buffer
                 if(tail == head || recvpkt->hdr.seqno > lastBuffered){
                     printf("Writing %d to buffer\n", recvpkt->hdr.seqno);
-                    out_of_order[tail] = *recvpkt;
+                    out_of_order_num[tail] = recvpkt->hdr.seqno;
+                    out_of_order_size[tail] = recvpkt->hdr.data_size;
+                    strcpy(out_of_order_data[tail], recvpkt->data);
                     tail = (tail + 1) % 10;
                     lastBuffered = recvpkt->hdr.seqno;
                 }
