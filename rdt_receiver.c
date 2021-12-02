@@ -159,6 +159,8 @@ int main(int argc, char **argv) {
                         out_of_order_num[tail] = recvpkt->hdr.seqno;
                         out_of_order_size[tail] = recvpkt->hdr.data_size;
                         strcpy(out_of_order_data[tail], recvpkt->data);
+                        printf("%s\n\n\n", recvpkt->data);
+                        printf("%s\n", out_of_order_data[tail]);
                         // printf("Saved:%s\n\n", out_of_order_data[tail]);
                         tail = (tail + 1) % 10;
                         lastBuffered = recvpkt->hdr.seqno;
