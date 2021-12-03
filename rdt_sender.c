@@ -320,12 +320,13 @@ int main (int argc, char **argv)
             //         error("sendto");
             //     }
             // }
+            
+            // increment next seq # to be sent, decrement effective window, increase packets in flight
+            next_seqno = next_seqno + len;
             VLOG(DEBUG, "Sending packet %d to %s", next_seqno, inet_ntoa(serveraddr.sin_addr));
             if(sendto(sockfd, sndpkt, TCP_HDR_SIZE + get_data_size(sndpkt), 0, (const struct sockaddr *)&serveraddr, serverlen) < 0){
                 error("sendto");
             }
-            // increment next seq # to be sent, decrement effective window, increase packets in flight
-            next_seqno = next_seqno + len;
             packets_in_flight++;
             // if first packet is sent, start timer
             if(timer_running == 0){
@@ -419,12 +420,28 @@ int main (int argc, char **argv)
                     timer_running = 0;
                     stop_timer();
 
-                    //Start timer on next packet
+                    //Restart on next in flight
+                    // if(packets_in_flight > 0){
+                    //     timedPacket = send_base;
+                    //     start_timer();
+                    //     timer_running = 1;
+                    //     // acklen = len;
+                    //     retransmit = 0;
+                    // }
                 }
                 // Stop timer as a retransmitted packet has been recived
                 else if(timedPacket <= send_base){
                     timer_running = 0;
                     stop_timer();
+
+                    //Restart on next in flight
+                    // if(packets_in_flight > 0){
+                    //     timedPacket = send_base;
+                    //     start_timer();
+                    //     timer_running = 1;
+                    //     // acklen = len;
+                    //     retransmit = 0;
+                    // }
                 }
             }
             // if duplicate ACK, increment the dupe ACK count
