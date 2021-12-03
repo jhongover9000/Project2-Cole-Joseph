@@ -101,8 +101,7 @@ void resend_packets(int sig)
             VLOG(INFO, "End Of File has been reached");
             sndpkt = make_packet(0);
             sndpkt->hdr.ctr_flags = FIN;
-            sndpkt->hdr.ackno = send_base;
-            sndpkt->hdr.seqno = next_seqno;
+            sndpkt->hdr.ackno = next_seqno;
             sendto(sockfd, sndpkt, TCP_HDR_SIZE, 0, (const struct sockaddr *)&serveraddr, serverlen);
         }
         // otherwise, create a packet with the data read
@@ -118,9 +117,7 @@ void resend_packets(int sig)
             error("sendto");
         }
 
-    // }
-        // packets_in_flight = 0;
-        // set fp to back to next seq # to be read, decrement effective window
+        // set fp to back to next seq # to be read
         fseek(fp, next_seqno, SEEK_SET);
     }
 }
@@ -274,7 +271,7 @@ int main (int argc, char **argv)
 
         // Send as many packets in effective window as doable
         printf("Window: %d, Packets in flight:%d\n", window_size, packets_in_flight);
-        while( (window_size - packets_in_flight && next_seqno <= window_end) > 0){
+        while( ((window_size - packets_in_flight > 0 && next_seqno <= window_end)) || timer_running == 0 ){
             // at the end of the buffer, just keep sending the last packet to get the dupe ACKs
             // if(next_seqno > window_end){
             //     sndpkt = make_packet(0);
@@ -303,7 +300,7 @@ int main (int argc, char **argv)
             // printf("Sending for first time \n%s\n\n", sndpkt->data);
 
             // Send Packet
-            VLOG(DEBUG, "Sending packet %d to %s", next_seqno, inet_ntoa(serveraddr.sin_addr));
+            // VLOG(DEBUG, "Sending packet %d to %s", next_seqno, inet_ntoa(serveraddr.sin_addr));
             if(sendto(sockfd, sndpkt, TCP_HDR_SIZE + get_data_size(sndpkt), 0, (const struct sockaddr *)&serveraddr, serverlen) < 0){
                 error("sendto");
             }
@@ -350,7 +347,7 @@ int main (int argc, char **argv)
             // if previous sequence has been ACKed, increment effective_window and send_base
             if(recvpkt->hdr.ackno > send_base){
                 int packets_acked = 1;
-                // if acknum is greater than base 
+                // if acknum is greater than base + additional packet (2 or more packets ACKed)
                 if(recvpkt->hdr.ackno > send_base + DATA_SIZE){
                     // get difference between ACK number and send base, divide and round up
                     int total_diff = recvpkt->hdr.ackno - (send_base);
@@ -398,7 +395,6 @@ int main (int argc, char **argv)
                     timer_running = 0;
                     stop_timer();
 
-                    //Start timer on next packet
                 }
                 // Stop timer as a retransmitted packet has been recived
                 else if(timedPacket <= send_base){
