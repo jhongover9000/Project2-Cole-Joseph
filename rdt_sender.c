@@ -123,6 +123,7 @@ void resend_packets(int sig)
         }
         // set fp to back to next seq # to be read, decrement effective window
         fseek(fp, next_seqno, SEEK_SET);
+
     }
 }
 
@@ -263,6 +264,9 @@ int main (int argc, char **argv)
                 fseek(fp, next_seqno, SEEK_SET); 
             }
             printf("Fast retransmitting packet with seq %d.\n", sndpkt->hdr.seqno);
+
+            // free memory
+            free(sndpkt);
         }
 
         // Update Window End
@@ -311,7 +315,7 @@ int main (int argc, char **argv)
                 timer_running = 1;
                 // acklen = len;
                 retransmit = 0;
-                timedPacket = send_base;
+                timedPacket = next_seqno;
             }
 
             // update next sequence number
