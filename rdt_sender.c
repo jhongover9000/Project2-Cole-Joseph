@@ -99,6 +99,7 @@ void resend_packets(int sig)
         int len = 0;
         char buffer[DATA_SIZE];
         len = fread(buffer, 1, DATA_SIZE, fp);
+        
         // if EOF, send an empty packet to notify receiver of EOF
         if (len <= 0){
             VLOG(INFO, "End Of File has been reached");
