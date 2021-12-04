@@ -263,6 +263,9 @@ int main (int argc, char **argv)
                 fseek(fp, next_seqno, SEEK_SET); 
             }
             printf("Fast retransmitting packet with seq %d.\n", sndpkt->hdr.seqno);
+
+            // free memory
+            free(sndpkt); 
         }
 
         // Update Window End
@@ -291,7 +294,7 @@ int main (int argc, char **argv)
             sndpkt->hdr.seqno = next_seqno;
 
             // Send Packet
-            // if(rand()%10 == 0 && window_size > 30){}
+            // if(rand()%2 == 0 && window_size > 10){}
             // else{
             //     VLOG(DEBUG, "Sending packet %d to %s", next_seqno, inet_ntoa(serveraddr.sin_addr));
             //     if(sendto(sockfd, sndpkt, TCP_HDR_SIZE + get_data_size(sndpkt), 0, (const struct sockaddr *)&serveraddr, serverlen) < 0){
@@ -314,7 +317,7 @@ int main (int argc, char **argv)
                 timedPacket = next_seqno;
             }
 
-            // update next sequence number (change to send_base if not working?)
+            // update next sequence number
             next_seqno = next_seqno + len;
             packets_in_flight++;
             

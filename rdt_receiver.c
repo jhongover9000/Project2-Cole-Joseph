@@ -167,7 +167,7 @@ int main(int argc, char **argv) {
                             // printf("Current:%s\n\n", recvpkt->data);
                             out_of_order_num[tail] = recvpkt->hdr.seqno;
                             out_of_order_size[tail] = recvpkt->hdr.data_size;
-                            strcpy(out_of_order_data[tail], recvpkt->data);
+                            memcpy(out_of_order_data[tail], recvpkt->data, recvpkt->hdr.data_size);
                             printf("%s\n\n\n", recvpkt->data);
                             printf("%s\n", out_of_order_data[tail]);
                             // printf("Saved:%s\n\n", out_of_order_data[tail]);
