@@ -284,7 +284,7 @@ int main (int argc, char **argv)
 
         // Send as many packets in effective window as doable
         printf("Window: %d, Packets in flight:%d\n", window_size, packets_in_flight);
-        while( (window_size - packets_in_flight) > 0){
+        while( (window_size - packets_in_flight) > 0 || timer_running == 0){
             // at the end of the buffer, just keep sending the last packet to get the dupe ACKs
             // if(next_seqno > window_end){
             //     sndpkt = make_packet(0);
@@ -419,10 +419,11 @@ int main (int argc, char **argv)
                     recalcTimeout(fullTimer - timerMilliseconds);
                     timer_running = 0;
                     stop_timer();
+                    printf("timer stopped\n");
 
                     //Restart on next in flight
                     // if(packets_in_flight > 0){
-                    //     timedPacket = send_base;
+                    //     timedPacket = send_base + DATA_SIZE;
                     //     start_timer();
                     //     timer_running = 1;
                     //     // acklen = len;
@@ -433,10 +434,11 @@ int main (int argc, char **argv)
                 else if(timedPacket <= send_base){
                     timer_running = 0;
                     stop_timer();
+                    printf("timer stopped\n");
 
                     //Restart on next in flight
                     // if(packets_in_flight > 0){
-                    //     timedPacket = send_base;
+                    //     timedPacket = send_base + DATA_SIZE;
                     //     start_timer();
                     //     timer_running = 1;
                     //     // acklen = len;
