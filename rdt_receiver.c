@@ -40,7 +40,7 @@ int main(int argc, char **argv) {
     struct timeval tp;
     int lastrecvseqnum = 0;
 
-    //Out of order
+    // Out of order
     int out_of_order_num[10];
     int out_of_order_size[10];
     char out_of_order_data[10][1456];
@@ -89,16 +89,18 @@ int main(int argc, char **argv) {
                 sizeof(serveraddr)) < 0) 
         error("ERROR on binding");
 
-    /* 
-     * main loop: wait for a datagram, then echo it
-     */
     VLOG(DEBUG, "epoch time, bytes received, sequence number");
 
     clientlen = sizeof(clientaddr);
 
+    // Main Execution
     while (1) {
-        //VLOG(DEBUG, "waiting from server \n");
+        // VLOG(DEBUG, "waiting from server \n");
+
+        // Clear Buffer
         bzero(&buffer, sizeof(buffer));
+
+        // Receive Packet
         if (recvfrom(sockfd, buffer, MSS_SIZE, 0,
                 (struct sockaddr *) &clientaddr, (socklen_t *)&clientlen) < 0) {
             error("ERROR in recvfrom");
@@ -129,6 +131,7 @@ int main(int argc, char **argv) {
         }
         printf("\n");
 
+        // If DATA Packet
         if(recvpkt->hdr.ctr_flags == DATA){
             // If not out of order, dont discard (sequence number isnt too large)
             if(recvpkt->hdr.seqno == lastrecvseqnum){
@@ -152,7 +155,7 @@ int main(int argc, char **argv) {
                     printf("New Buffer: %d at %d %d\n", out_of_order_num[head], head, tail);
                 }
             }
-            // If out of order, attempt to buffer
+            // if out of order, attempt to buffer
             else if (recvpkt->hdr.seqno > lastrecvseqnum){
                 // See if there is space
                 if((tail + 1) % 10 != head){
@@ -177,7 +180,7 @@ int main(int argc, char **argv) {
                 printf("Out of order packet received.\n");
             }
         }
-        // If FIN packet arrives
+        // If FIN Packet
         else if (recvpkt->hdr.ctr_flags == FIN) {
             if(recvpkt->hdr.ackno == lastrecvseqnum){
                 //VLOG(INFO, "End Of File has been reached");
@@ -194,13 +197,14 @@ int main(int argc, char **argv) {
                 break;
             }
         }
+        // Set ACK and Send
         sndpkt->hdr.ackno = lastrecvseqnum;
         sndpkt->hdr.ctr_flags = ACK;
         if (sendto(sockfd, sndpkt, TCP_HDR_SIZE, 0, 
                 (struct sockaddr *) &clientaddr, clientlen) < 0) {
             error("ERROR in sendto");
         }
-        // free(recvpkt);
+        // free memory
         free(sndpkt);
     }
 
