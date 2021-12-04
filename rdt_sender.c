@@ -263,9 +263,6 @@ int main (int argc, char **argv)
                 fseek(fp, next_seqno, SEEK_SET); 
             }
             printf("Fast retransmitting packet with seq %d.\n", sndpkt->hdr.seqno);
-
-            // free memory
-            free(sndpkt); 
         }
 
         // Update Window End
@@ -314,7 +311,7 @@ int main (int argc, char **argv)
                 timer_running = 1;
                 // acklen = len;
                 retransmit = 0;
-                timedPacket = next_seqno;
+                timedPacket = send_base;
             }
 
             // update next sequence number
@@ -350,8 +347,10 @@ int main (int argc, char **argv)
         // if ACK, check ACK number
         else if(recvpkt->hdr.ctr_flags == ACK){
             printf("Received ACK with base: %d.\n", recvpkt->hdr.ackno);
-            // if previous sequence has been ACKed, increment effective_window and send_base
+            // if successful ACK (non-duplicate) arrives
             if(recvpkt->hdr.ackno > send_base){
+                 // reset dupe ACK counter
+                dupe_acks = 0;
                 // printf("End timer sequence\n");
                 int packets_acked = 1;
                 // if acknum is greater than base + additional packet (2 or more packets ACKed)
