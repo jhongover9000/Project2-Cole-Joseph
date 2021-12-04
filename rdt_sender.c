@@ -228,7 +228,7 @@ int main (int argc, char **argv)
         fprintf(fpt,"%lu, %d, %d, %d, %d, %d\n", tp.tv_sec, window_size, slow_start, ssthresh, send_base, packets_in_flight);
 
         // Clear Buffer
-        bzero(&buffer, sizeof(buffer));
+        // bzero(&buffer, sizeof(buffer));
 
         // Fast Retransmit (if applicable)
         if(dupe_acks >= 3){
@@ -304,8 +304,7 @@ int main (int argc, char **argv)
             if(sendto(sockfd, sndpkt, TCP_HDR_SIZE + get_data_size(sndpkt), 0, (const struct sockaddr *)&serveraddr, serverlen) < 0){
                 error("sendto");
             }
-            next_seqno = next_seqno + len;
-            packets_in_flight++;
+            
             // if first packet is sent, start timer
             if(timer_running == 0){
                 start_timer();
@@ -314,6 +313,11 @@ int main (int argc, char **argv)
                 retransmit = 0;
                 timedPacket = next_seqno;
             }
+
+            // update next sequence number (change to send_base if not working?)
+            next_seqno = next_seqno + len;
+            packets_in_flight++;
+            
             // free memory
             free(sndpkt); 
         }
