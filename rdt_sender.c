@@ -299,7 +299,6 @@ int main (int argc, char **argv)
             // }
             
             // increment next seq # to be sent, decrement effective window, increase packets in flight
-            next_seqno = next_seqno + len;
             VLOG(DEBUG, "Sending packet %d to %s", next_seqno, inet_ntoa(serveraddr.sin_addr));
             if(sendto(sockfd, sndpkt, TCP_HDR_SIZE + get_data_size(sndpkt), 0, (const struct sockaddr *)&serveraddr, serverlen) < 0){
                 error("sendto");
