@@ -111,7 +111,7 @@ int main(int argc, char **argv) {
         
         // Create ACK packet
         sndpkt = make_packet(0);
-        printf("\e[1;1H\e[2J");
+        printf("\e[1;1H\e[2J\n");
         if(recvpkt->hdr.ctr_flags == DATA){
             printf("Seq received: %d | Looking for: %d.\n", recvpkt->hdr.seqno, lastrecvseqnum);
         }
@@ -151,19 +151,14 @@ int main(int argc, char **argv) {
                     head = (head + 1) % 10;
                     printf("New Buffer: %d at %d %d\n", out_of_order_num[head], head, tail);
                 }
-
-                
-                // check buffer for any consecutive packets (entire array)
-                // if one exists, write it and 
-                
             }
+            // If out of order, attempt to buffer
             else if (recvpkt->hdr.seqno > lastrecvseqnum){
-                // attempt to buffer
-                //See if there is space
+                // See if there is space
                 if((tail + 1) % 10 != head){
-                    //Make sure the packet being written to buffer is not smaller than the last packet in buffer
+                    // Make sure the packet being written to buffer is not smaller than the last packet in buffer
                     if(tail == head || recvpkt->hdr.seqno >= lastBuffered){
-                        //Dont buffer ones with no size
+                        // Dont buffer ones with no size
                         // if(recvpkt->hdr.data_size > 0){
                             printf("Writing %d to buffer\n", recvpkt->hdr.seqno);
                             // printf("Current:%s\n\n", recvpkt->data);
@@ -178,7 +173,6 @@ int main(int argc, char **argv) {
                         // }
                     }
                 }
-
                 // no change to lastrecvseqnum
                 printf("Out of order packet received.\n");
             }

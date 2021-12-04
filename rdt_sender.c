@@ -226,6 +226,9 @@ int main (int argc, char **argv)
         gettimeofday(&tp, NULL);
         fprintf(fpt,"%lu, %d, %d, %d, %d, %d\n", tp.tv_sec, window_size, slow_start, ssthresh, send_base, packets_in_flight);
 
+        // Clear Buffer
+        bzero(&buffer, sizeof(buffer));
+
         // Fast Retransmit (if applicable)
         if(dupe_acks >= 3){
             retransmit = 1;  // mark as duplicate for timer
@@ -271,7 +274,7 @@ int main (int argc, char **argv)
 
         // Send as many packets in effective window as doable
         printf("Window: %d, Packets in flight:%d\n", window_size, packets_in_flight);
-        while( (window_size - packets_in_flight) > 0 || timer_running == 0){
+        while( ( (window_size - packets_in_flight) > 0 && (next_seqno <= window_end) ) || timer_running == 0){
             // at the end of the buffer, just keep sending the last packet to get the dupe ACKs
             // if(next_seqno > window_end){
             //     sndpkt = make_packet(0);
@@ -297,13 +300,13 @@ int main (int argc, char **argv)
             sndpkt = make_packet(len);
             memcpy(sndpkt->data, buffer, len);
             sndpkt->hdr.seqno = next_seqno;
-            // printf("Sending for first time \n%s\n\n", sndpkt->data);
 
             // Send Packet
             // VLOG(DEBUG, "Sending packet %d to %s", next_seqno, inet_ntoa(serveraddr.sin_addr));
             if(sendto(sockfd, sndpkt, TCP_HDR_SIZE + get_data_size(sndpkt), 0, (const struct sockaddr *)&serveraddr, serverlen) < 0){
                 error("sendto");
             }
+            next_seqno = next_seqno + len;
             packets_in_flight++;
             // if first packet is sent, start timer
             if(timer_running == 0){
@@ -313,6 +316,7 @@ int main (int argc, char **argv)
                 retransmit = 0;
                 timedPacket = next_seqno;
             }
+            // printf("Sending for first time \n%s\n\n", sndpkt->data);
             // free memory
             free(sndpkt); 
         }
@@ -325,7 +329,7 @@ int main (int argc, char **argv)
         // create packet
         recvpkt = (tcp_packet *)buffer;
         // display connection status
-        printf("\e[1;1H\e[2J");
+        printf("\e[1;1H\e[2J\n");
         if(slow_start){printf("-= Slow Start =-\n");}
         else{printf("-= Congestion Avoidance =-\n");}
         printf("Control Window: %d | Packets in Flight: %d | ssthresh: %d\n", window_size, packets_in_flight, ssthresh);
@@ -373,13 +377,13 @@ int main (int argc, char **argv)
                 }
                 // if congestion avoidance, increment the accumulated ACK based on the size of data
                 else{
-                    send_base = recvpkt->hdr.ackno;
                     // if the entire cwnd size has been ACKed, increase window size by 1
                     if(acc_acks >= window_size){
                         acc_acks = 0;
                         window_size++;
                         // printf("Incrementing window size. Cwnd: %d\n", window_size);
                     }
+                    send_base = recvpkt->hdr.ackno;
                 }
                 // stop timer (restarts after iteration ends), check to see if rtt needs to be recalculated
                 // printf("Starting timer sequence\n");
