@@ -40,11 +40,14 @@ int main(int argc, char **argv) {
     struct timeval tp;
     int lastrecvseqnum = 0;
 
-    // Out of order
+    // Out of order buffer
     int buffer_size = 10;
     int out_of_order_num[buffer_size];
     int out_of_order_size[buffer_size];
     char out_of_order_data[buffer_size][DATA_SIZE];
+    memset(out_of_order_num, 0, buffer_size*sizeof(out_of_order_num[0]));
+    memset(out_of_order_size, 0, buffer_size*sizeof(out_of_order_size[0]));
+
     int head = 0; //Where is the next out of order packet
     int tail = 0; //Where to put the next out of order packet
     int lastBuffered = 0; //Used to make sure packets are not buffered out of order in buffer

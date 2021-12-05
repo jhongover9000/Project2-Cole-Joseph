@@ -100,7 +100,7 @@ void resend_packets(int sig)
         char buffer[DATA_SIZE];
 
         // Clear Buffer
-        bzero(&buffer, sizeof(buffer));
+        // bzero(&buffer, sizeof(buffer));
 
         len = fread(buffer, 1, DATA_SIZE, fp);
 
@@ -234,7 +234,7 @@ int main (int argc, char **argv)
         fprintf(fpt,"%lu, %d, %d, %d, %d, %d\n", tp.tv_sec, window_size, slow_start, ssthresh, send_base, packets_in_flight);
 
         // Clear Buffer
-        bzero(&buffer, sizeof(buffer));
+        // bzero(&buffer, sizeof(buffer));
 
         // Fast Retransmit (if applicable)
         if(dupe_acks >= 3){
@@ -301,17 +301,17 @@ int main (int argc, char **argv)
             sndpkt->hdr.seqno = next_seqno;
 
             // Send Packet
-            if((rand()%4 == 0 || rand()%4 == 1) && window_size > 3){}
-            else{
-                VLOG(DEBUG, "Sending packet %d to %s", next_seqno, inet_ntoa(serveraddr.sin_addr));
-                if(sendto(sockfd, sndpkt, TCP_HDR_SIZE + get_data_size(sndpkt), 0, (const struct sockaddr *)&serveraddr, serverlen) < 0){
-                    error("sendto");
-                }
-            }
-            // VLOG(DEBUG, "Sending packet %d to %s", next_seqno, inet_ntoa(serveraddr.sin_addr));
-            // if(sendto(sockfd, sndpkt, TCP_HDR_SIZE + get_data_size(sndpkt), 0, (const struct sockaddr *)&serveraddr, serverlen) < 0){
-            //     error("sendto");
+            // if((rand()%4 == 0 || rand()%4 == 1) && window_size > 3){}
+            // else{
+            //     VLOG(DEBUG, "Sending packet %d to %s", next_seqno, inet_ntoa(serveraddr.sin_addr));
+            //     if(sendto(sockfd, sndpkt, TCP_HDR_SIZE + get_data_size(sndpkt), 0, (const struct sockaddr *)&serveraddr, serverlen) < 0){
+            //         error("sendto");
+            //     }
             // }
+            VLOG(DEBUG, "Sending packet %d to %s", next_seqno, inet_ntoa(serveraddr.sin_addr));
+            if(sendto(sockfd, sndpkt, TCP_HDR_SIZE + get_data_size(sndpkt), 0, (const struct sockaddr *)&serveraddr, serverlen) < 0){
+                error("sendto");
+            }
             
             // if first packet is sent, start timer
             if(timer_running == 0){
@@ -405,7 +405,7 @@ int main (int argc, char **argv)
                     int timerMilliseconds = timerVal.it_value.tv_sec*1000 + (timerVal.it_value.tv_usec/1000);
                     int fullTimer = timer.it_value.tv_sec*1000 + (timer.it_value.tv_usec/1000);
                     // printf("Recorded timer:%d fulltimer:%d\n", timerMilliseconds, fullTimer);
-                    recalcTimeout(fullTimer - timerMilliseconds);
+                    // recalcTimeout(fullTimer - timerMilliseconds);
                     timer_running = 0;
                     stop_timer();
                     // printf("timer stopped\n");
