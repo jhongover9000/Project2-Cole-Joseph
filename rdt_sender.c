@@ -118,15 +118,17 @@ void resend_packets(int sig)
             memcpy(timeoutpkt->data, buffer, len);
             timeoutpkt->hdr.seqno = send_base;
             printf("Base packet recreated.\n");
-        }
-        // send packet
-        VLOG(DEBUG, "Sending packet %d to %s", send_base, inet_ntoa(serveraddr.sin_addr));
-        if(sendto(sockfd, timeoutpkt, TCP_HDR_SIZE + get_data_size(timeoutpkt), 0, (const struct sockaddr *)&serveraddr, serverlen) < 0){
-            error("sendto");
+            // send packet
+            VLOG(DEBUG, "Sending packet %d to %s", send_base, inet_ntoa(serveraddr.sin_addr));
+            if(sendto(sockfd, timeoutpkt, TCP_HDR_SIZE + get_data_size(timeoutpkt), 0, (const struct sockaddr *)&serveraddr, serverlen) < 0){
+                error("sendto");
+            }
         }
         // set fp to back to next seq # to be read, decrement effective window
         fseek(fp, next_seqno, SEEK_SET);
 
+        // free memory
+        free(timeoutpkt);
     }
 }
 
@@ -255,6 +257,7 @@ int main (int argc, char **argv)
                 sndpkt->hdr.ackno = next_seqno;
                 sendto(sockfd, sndpkt, TCP_HDR_SIZE, 0, (const struct sockaddr *)&serveraddr, serverlen);
             }
+            // otherwise, make a packet and fill it
             else{
                 sndpkt = make_packet(len);
                 memcpy(sndpkt->data, buffer, len);
@@ -276,7 +279,7 @@ int main (int argc, char **argv)
         effective_window = (window_size - packets_in_flight);
         window_end = send_base + (DATA_SIZE * window_size);
 
-        // Send as many packets in effective window as doable
+        // Send as many packets in the control window as possible (prevent from going outside of it)
         printf("Window: %d, Packets in flight:%d\n", window_size, packets_in_flight);
         while( ( (window_size - packets_in_flight) > 0 && (next_seqno <= window_end) ) || timer_running == 0){
             
@@ -298,17 +301,17 @@ int main (int argc, char **argv)
             sndpkt->hdr.seqno = next_seqno;
 
             // Send Packet
-            // if(rand()%2 == 0 && window_size > 20){}
-            // else{
-            //     VLOG(DEBUG, "Sending packet %d to %s", next_seqno, inet_ntoa(serveraddr.sin_addr));
-            //     if(sendto(sockfd, sndpkt, TCP_HDR_SIZE + get_data_size(sndpkt), 0, (const struct sockaddr *)&serveraddr, serverlen) < 0){
-            //         error("sendto");
-            //     }
-            // }
-            VLOG(DEBUG, "Sending packet %d to %s", next_seqno, inet_ntoa(serveraddr.sin_addr));
-            if(sendto(sockfd, sndpkt, TCP_HDR_SIZE + get_data_size(sndpkt), 0, (const struct sockaddr *)&serveraddr, serverlen) < 0){
-                error("sendto");
+            if((rand()%4 == 0 || rand()%4 == 1) && window_size > 3){}
+            else{
+                VLOG(DEBUG, "Sending packet %d to %s", next_seqno, inet_ntoa(serveraddr.sin_addr));
+                if(sendto(sockfd, sndpkt, TCP_HDR_SIZE + get_data_size(sndpkt), 0, (const struct sockaddr *)&serveraddr, serverlen) < 0){
+                    error("sendto");
+                }
             }
+            // VLOG(DEBUG, "Sending packet %d to %s", next_seqno, inet_ntoa(serveraddr.sin_addr));
+            // if(sendto(sockfd, sndpkt, TCP_HDR_SIZE + get_data_size(sndpkt), 0, (const struct sockaddr *)&serveraddr, serverlen) < 0){
+            //     error("sendto");
+            // }
             
             // if first packet is sent, start timer
             if(timer_running == 0){

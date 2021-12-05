@@ -145,10 +145,8 @@ int main(int argc, char **argv) {
                     printf("Buffer has %d at %d %d\n", out_of_order_num[head], head, tail);
                 }
                 while(tail != head && out_of_order_num[head] == lastrecvseqnum){
-                    printf("USING THE BUFFER\n");
-                    printf("writing %d\n", out_of_order_num[head]);
-                    printf("of size %d\n", out_of_order_size[head]);
-                    printf("writing \n%s\n\n", out_of_order_data[head]);
+                    printf("Using buffer. Writing %d of size %d, with content:\n", out_of_order_num[head], out_of_order_size[head]);
+                    printf("%s\n\n", out_of_order_data[head]);
                     fseek(fp, out_of_order_num[head], SEEK_SET);
                     fwrite(out_of_order_data[head], 1, out_of_order_size[head], fp);
                     lastrecvseqnum = out_of_order_num[head] + out_of_order_size[head];
