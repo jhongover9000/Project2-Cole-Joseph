@@ -44,7 +44,7 @@ int main(int argc, char **argv) {
     int buffer_size = 10;
     int out_of_order_num[buffer_size];
     int out_of_order_size[buffer_size];
-    char out_of_order_data[buffer_size][1456];
+    char out_of_order_data[buffer_size][DATA_SIZE];
     int head = 0; //Where is the next out of order packet
     int tail = 0; //Where to put the next out of order packet
     int lastBuffered = 0; //Used to make sure packets are not buffered out of order in buffer

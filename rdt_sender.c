@@ -98,8 +98,12 @@ void resend_packets(int sig)
         fseek(fp, send_base, SEEK_SET); // rewind fp to send base
         int len = 0;
         char buffer[DATA_SIZE];
+
+        // Clear Buffer
+        bzero(&buffer, sizeof(buffer));
+
         len = fread(buffer, 1, DATA_SIZE, fp);
-        
+
         // if EOF, send an empty packet to notify receiver of EOF
         if (len <= 0){
             VLOG(INFO, "End Of File has been reached");
@@ -229,7 +233,7 @@ int main (int argc, char **argv)
         fprintf(fpt,"%lu, %d, %d, %d, %d, %d\n", tp.tv_sec, window_size, slow_start, ssthresh, send_base, packets_in_flight);
 
         // Clear Buffer
-        // bzero(&buffer, sizeof(buffer));
+        bzero(&buffer, sizeof(buffer));
 
         // Fast Retransmit (if applicable)
         if(dupe_acks >= 3){
@@ -295,7 +299,7 @@ int main (int argc, char **argv)
             sndpkt->hdr.seqno = next_seqno;
 
             // Send Packet
-            // if(rand()%2 == 0 && window_size > 10){}
+            // if(rand()%2 == 0 && window_size > 20){}
             // else{
             //     VLOG(DEBUG, "Sending packet %d to %s", next_seqno, inet_ntoa(serveraddr.sin_addr));
             //     if(sendto(sockfd, sndpkt, TCP_HDR_SIZE + get_data_size(sndpkt), 0, (const struct sockaddr *)&serveraddr, serverlen) < 0){
