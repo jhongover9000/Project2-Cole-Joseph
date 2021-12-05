@@ -41,9 +41,10 @@ int main(int argc, char **argv) {
     int lastrecvseqnum = 0;
 
     // Out of order
-    int out_of_order_num[10];
-    int out_of_order_size[10];
-    char out_of_order_data[10][1456];
+    int buffer_size = 10;
+    int out_of_order_num[buffer_size];
+    int out_of_order_size[buffer_size];
+    char out_of_order_data[buffer_size][1456];
     int head = 0; //Where is the next out of order packet
     int tail = 0; //Where to put the next out of order packet
     int lastBuffered = 0; //Used to make sure packets are not buffered out of order in buffer
@@ -121,7 +122,7 @@ int main(int argc, char **argv) {
             printf("FIN packet received. End seq no: %d | Looking for: %d.\n", recvpkt->hdr.ackno, lastrecvseqnum);
         }
         printf("Seq No. of buffer: ");
-        for(int i = 0; i < 10; i++){
+        for(int i = 0; i < buffer_size; i++){
             if(i > 0){
                 printf(", %d", out_of_order_num[i]);
             }
@@ -135,7 +136,7 @@ int main(int argc, char **argv) {
         if(recvpkt->hdr.ctr_flags == DATA){
             // If not out of order, dont discard (sequence number isnt too large)
             if(recvpkt->hdr.seqno == lastrecvseqnum){
-                fseek(fp, recvpkt->hdr.seqno, SEEK_SET);
+                fseek(fp, lastrecvseqnum, SEEK_SET);
                 fwrite(recvpkt->data, 1, recvpkt->hdr.data_size, fp);
                 lastrecvseqnum = recvpkt->hdr.seqno + recvpkt->hdr.data_size;
 
@@ -151,14 +152,14 @@ int main(int argc, char **argv) {
                     fseek(fp, out_of_order_num[head], SEEK_SET);
                     fwrite(out_of_order_data[head], 1, out_of_order_size[head], fp);
                     lastrecvseqnum = out_of_order_num[head] + out_of_order_size[head];
-                    head = (head + 1) % 10;
+                    head = (head + 1) % buffer_size;
                     printf("New Buffer: %d at %d %d\n", out_of_order_num[head], head, tail);
                 }
             }
             // if out of order, attempt to buffer
             else if (recvpkt->hdr.seqno > lastrecvseqnum){
                 // See if there is space
-                if((tail + 1) % 10 != head){
+                if((tail + 1) % buffer_size != head){
                     // Make sure the packet being written to buffer is not smaller than the last packet in buffer
                     if(tail == head || recvpkt->hdr.seqno >= lastBuffered){
                         // Dont buffer ones with no size
@@ -171,7 +172,7 @@ int main(int argc, char **argv) {
                             printf("%s\n\n\n", recvpkt->data);
                             printf("%s\n", out_of_order_data[tail]);
                             // printf("Saved:%s\n\n", out_of_order_data[tail]);
-                            tail = (tail + 1) % 10;
+                            tail = (tail + 1) % buffer_size;
                             lastBuffered = recvpkt->hdr.seqno;
                         // }
                     }

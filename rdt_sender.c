@@ -286,7 +286,7 @@ int main (int argc, char **argv)
                 sndpkt->hdr.ctr_flags = FIN;
                 sndpkt->hdr.ackno = next_seqno;
                 sendto(sockfd, sndpkt, TCP_HDR_SIZE, 0, (const struct sockaddr *)&serveraddr, serverlen);
-                // packets_in_flight++;
+                packets_in_flight++;
                 break;
             }
             // otherwise, create a packet with the data read
@@ -302,8 +302,6 @@ int main (int argc, char **argv)
             //         error("sendto");
             //     }
             // }
-            
-            // increment next seq # to be sent, decrement effective window, increase packets in flight
             VLOG(DEBUG, "Sending packet %d to %s", next_seqno, inet_ntoa(serveraddr.sin_addr));
             if(sendto(sockfd, sndpkt, TCP_HDR_SIZE + get_data_size(sndpkt), 0, (const struct sockaddr *)&serveraddr, serverlen) < 0){
                 error("sendto");
@@ -318,7 +316,7 @@ int main (int argc, char **argv)
                 timedPacket = next_seqno;
             }
 
-            // update next sequence number
+            // increment next seq # to be sent increase packets in flight
             next_seqno = next_seqno + len;
             packets_in_flight++;
             
@@ -350,7 +348,7 @@ int main (int argc, char **argv)
         }
         // if ACK, check ACK number
         else if(recvpkt->hdr.ctr_flags == ACK){
-            printf("Received ACK with base: %d.\n", recvpkt->hdr.ackno);
+            printf("Received ACK asking for: %d.\n", recvpkt->hdr.ackno);
             // if successful ACK (non-duplicate) arrives
             if(recvpkt->hdr.ackno > send_base){
                  // reset dupe ACK counter
