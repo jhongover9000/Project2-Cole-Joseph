@@ -60,7 +60,7 @@ struct itimerval timer;
 
 // Packet & File Variables
 tcp_packet *sndpkt; 
-tcp_packet *lastackpkt;
+tcp_packet *timeoutpkt;
 tcp_packet *recvpkt;
 sigset_t sigmask;       
 FILE *fp;
@@ -107,22 +107,21 @@ void resend_packets(int sig)
         // if EOF, send an empty packet to notify receiver of EOF
         if (len <= 0){
             VLOG(INFO, "End Of File has been reached");
-            sndpkt = make_packet(0);
-            sndpkt->hdr.ctr_flags = FIN;
-            sndpkt->hdr.ackno = send_base;
-            sndpkt->hdr.seqno = next_seqno;
-            sendto(sockfd, sndpkt, TCP_HDR_SIZE, 0, (const struct sockaddr *)&serveraddr, serverlen);
+            timeoutpkt = make_packet(0);
+            timeoutpkt->hdr.ctr_flags = FIN;
+            timeoutpkt->hdr.ackno = next_seqno;
+            sendto(sockfd, timeoutpkt, TCP_HDR_SIZE, 0, (const struct sockaddr *)&serveraddr, serverlen);
         }
         // otherwise, create a packet with the data read
         else{
-            sndpkt = make_packet(len);
-            memcpy(sndpkt->data, buffer, len);
-            sndpkt->hdr.seqno = send_base;
+            timeoutpkt = make_packet(len);
+            memcpy(timeoutpkt->data, buffer, len);
+            timeoutpkt->hdr.seqno = send_base;
             printf("Base packet recreated.\n");
         }
         // send packet
         VLOG(DEBUG, "Sending packet %d to %s", send_base, inet_ntoa(serveraddr.sin_addr));
-        if(sendto(sockfd, sndpkt, TCP_HDR_SIZE + get_data_size(sndpkt), 0, (const struct sockaddr *)&serveraddr, serverlen) < 0){
+        if(sendto(sockfd, timeoutpkt, TCP_HDR_SIZE + get_data_size(timeoutpkt), 0, (const struct sockaddr *)&serveraddr, serverlen) < 0){
             error("sendto");
         }
         // set fp to back to next seq # to be read, decrement effective window
