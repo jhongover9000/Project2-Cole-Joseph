@@ -231,7 +231,7 @@ int main (int argc, char **argv)
     {
         // Logging
         gettimeofday(&tp, NULL);
-        fprintf(fpt,"%lu, %d, %d, %d, %d, %d\n", tp.tv_sec, window_size, slow_start, ssthresh, send_base, packets_in_flight);
+        fprintf(fpt,"%lu, %d\n", tp.tv_sec, window_size);
 
         // Clear Buffer
         // bzero(&buffer, sizeof(buffer));
